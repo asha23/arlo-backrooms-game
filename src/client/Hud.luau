@@ -232,12 +232,31 @@ function Hud.new(): Hud
 	]]
 	local livesIcons: { ImageLabel } = {}
 	local maxLives = Config.Lives.Maximum
+
+	--[[
+		Geometry comes from Config.Hud, which the touch controls also read so
+		every on-screen button can sit clear above this row. Scaled to the
+		viewport for the same reason the buttons are: 30 pixels is a sensible
+		icon on a phone and a speck on a tablet.
+	]]
+	local hudCfg = Config.Hud
+	local hudCamera = workspace.CurrentCamera
+	local hudScale = math.clamp(
+		(if hudCamera then hudCamera.ViewportSize.Y else hudCfg.ReferenceHeight)
+			/ hudCfg.ReferenceHeight,
+		0.85,
+		1.6
+	)
+	local iconSize = math.floor(hudCfg.LivesIconSize * hudScale)
+	local iconPitch = math.floor(hudCfg.LivesPitch * hudScale)
+	local iconBottom = math.floor(hudCfg.LivesBottomOffset * hudScale)
+
 	for index = 1, maxLives do
 		local icon = Instance.new("ImageLabel")
 		icon.Name = `Life{index}`
-		icon.Size = UDim2.fromOffset(30, 30)
+		icon.Size = UDim2.fromOffset(iconSize, iconSize)
 		icon.AnchorPoint = Vector2.new(1, 1)
-		icon.Position = UDim2.new(1, -24 - (maxLives - index) * 34, 1, -56)
+		icon.Position = UDim2.new(1, -24 - (maxLives - index) * iconPitch, 1, -iconBottom)
 		icon.BackgroundColor3 = Color3.fromRGB(60, 56, 50)
 		icon.BackgroundTransparency = 0.25
 		icon.BorderSizePixel = 0

@@ -26,7 +26,10 @@
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local TouchControls = {}
 
@@ -206,6 +209,26 @@ local function makeToggle(
 	return button
 end
 
+--[[
+	Roblox's own jump button, moved out of the way.
+
+	It is created by the PlayerModule at the bottom right — the same corner as
+	FIRE and AIM, so by default it sits underneath them. It is not ours to
+	rebuild, but it is ours to reposition: we find the instance and re-anchor
+	it to the left of our cluster.
+
+	The PlayerModule builds it asynchronously and rebuilds it on respawn, so
+	this retries for a while and is re-applied on every layout pass rather than
+	being set once.
+]]
+local function findJumpButton(): GuiObject?
+	local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
+	local touchGui = playerGui and playerGui:FindFirstChild("TouchGui")
+	local frame = touchGui and touchGui:FindFirstChild("TouchControlFrame")
+	local jump = frame and frame:FindFirstChild("JumpButton")
+	return if jump and jump:IsA("GuiObject") then jump else nil
+end
+
 --- Builds the touch UI. Returns false (and builds nothing) on non-touch devices.
 function TouchControls.start(handlers: Handlers): boolean
 	-- A device with a mouse does not need these, even if it also has a
@@ -245,30 +268,70 @@ function TouchControls.start(handlers: Handlers): boolean
 		looking, which is the one thing that side has to stay clear for.
 	]]
 	local function layout()
+		local camera = workspace.CurrentCamera
+		local viewport = if camera then camera.ViewportSize else Vector2.new(1280, 720)
 		local s = scaleFor()
-		local pad = math.floor(18 * s)
-		local fireSize = math.floor(112 * s)
-		local aimSize = math.floor(76 * s)
-		local tapW, tapH = math.floor(88 * s), math.floor(58 * s)
 
+		--[[
+			Gaps come from the SCREEN, not from the button scale.
+
+			Tying spacing to the button scale means everything grows together,
+			so a tablet gets fatter targets with the same visual gap between
+			them — which is what made it feel cramped. Deriving the gap from
+			viewport height means a bigger screen actually spreads out.
+		]]
+		local gap = math.floor(math.clamp(viewport.Y * 0.045, 16, 46))
+		local edge = math.floor(math.clamp(viewport.Y * 0.04, 16, 44))
+
+		--[[
+			Everything sits ABOVE the lives row, which is drawn bottom-right by
+			the HUD. Its geometry is shared through Config.Hud so the two files
+			cannot disagree about where it ends.
+		]]
+		local hud = Config.Hud
+		local hudScale = math.clamp(viewport.Y / hud.ReferenceHeight, 0.85, 1.6)
+		local livesTop = math.floor((hud.LivesBottomOffset + hud.LivesIconSize) * hudScale)
+		local floorY = livesTop + gap
+
+		local fireSize = math.floor(112 * s)
+		local aimSize = math.floor(78 * s)
+		local jumpSize = math.floor(78 * s)
+		local tapW, tapH = math.floor(92 * s), math.floor(58 * s)
+
+		-- Bottom row, right to left: FIRE, AIM, JUMP.
 		fire.Size = UDim2.fromOffset(fireSize, fireSize)
-		fire.Position = UDim2.new(1, -pad, 1, -pad)
+		fire.Position = UDim2.new(1, -edge, 1, -floorY)
 
 		aim.Size = UDim2.fromOffset(aimSize, aimSize)
-		aim.Position = UDim2.new(1, -(pad + fireSize + math.floor(12 * s)), 1, -pad)
+		aim.Position = UDim2.new(1, -(edge + fireSize + gap), 1, -floorY)
 
 		reload.Size = UDim2.fromOffset(tapW, tapH)
-		reload.Position = UDim2.new(1, -pad, 1, -(pad + fireSize + math.floor(12 * s)))
+		reload.Position = UDim2.new(1, -edge, 1, -(floorY + fireSize + gap))
 
-		-- Left cluster. AnchorPoint is (1,1), so these are positioned by their
-		-- bottom-right corner measured from the left edge.
-		local leftX = pad + tapW
+		--[[
+			Roblox's own jump button is drawn in the bottom-right corner, which
+			is where FIRE is — so by default they overlap. It is not ours to
+			rebuild, but it is ours to move: it joins the row to the left of
+			AIM. The PlayerModule creates it asynchronously and rebuilds it on
+			respawn, which is why this runs on every layout pass rather than
+			once.
+		]]
+		local jump = findJumpButton()
+		if jump then
+			jump.AnchorPoint = Vector2.new(1, 1)
+			jump.Size = UDim2.fromOffset(jumpSize, jumpSize)
+			jump.Position = UDim2.new(1, -(edge + fireSize + gap + aimSize + gap), 1, -floorY)
+		end
+
+		-- Left cluster, positioned by its bottom-right corner from the left
+		-- edge, and lifted clear of Roblox's movement thumbstick.
+		local leftX = edge + tapW
+		local stickClearance = math.floor(math.clamp(viewport.Y * 0.30, 150, 340))
 		sprint.Size = UDim2.fromOffset(tapW, tapH)
-		sprint.Position = UDim2.new(0, leftX, 1, -(pad + math.floor(190 * s)))
+		sprint.Position = UDim2.new(0, leftX, 1, -(floorY + stickClearance))
 
 		light.Size = UDim2.fromOffset(tapW, tapH)
-		light.Position =
-			UDim2.new(0, leftX, 1, -(pad + math.floor(190 * s) + tapH + math.floor(12 * s)))
+		light.Position = UDim2.new(0, leftX, 1, -(floorY + stickClearance + tapH + gap))
 	end
 
 	layout()
@@ -276,6 +339,18 @@ function TouchControls.start(handlers: Handlers): boolean
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layout)
 	end
+
+	--[[
+		The jump button may not exist yet, and the PlayerModule rebuilds it on
+		respawn — so keep re-applying rather than positioning it once. Cheap:
+		a handful of property writes, twice a second, and only on touch.
+	]]
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			layout()
+		end
+	end)
 
 	return true
 end

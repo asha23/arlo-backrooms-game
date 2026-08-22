@@ -617,6 +617,22 @@ local Config = {
 		CelebrationSeconds = 4,
 	},
 
+	Hud = {
+		--[[
+			Lives row, bottom right.
+
+			These figures live here rather than in Hud.luau because the touch
+			controls need them too: every on-screen button has to sit clear
+			above this row, and two files guessing at the same geometry is how
+			they end up overlapping.
+		]]
+		LivesIconSize = 30,
+		LivesPitch = 34,
+		LivesBottomOffset = 22,
+		-- Reference viewport height the figures above are written against.
+		ReferenceHeight = 720,
+	},
+
 	Minimap = {
 		--[[
 			A radar rather than a rendered map: blips for the things that move
