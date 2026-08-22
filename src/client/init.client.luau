@@ -16,6 +16,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Device = require(ReplicatedStorage.Shared.Device)
 
 local Ambience = require(script.Ambience)
 local CameraController = require(script.CameraController)
@@ -185,5 +186,34 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	hud:setAmmoText(weapons:ammoText())
 	hud:setFlashlightWarning(flashlight:isLow())
 end)
+
+--[[
+	Says which layout was chosen and why.
+
+	Whether the HUD and controls use the touch layout hinges on
+	UserInputService reporting a touchscreen and no mouse, and there is no way
+	to tell from looking at the screen whether that came out true — a HUD in
+	the wrong place looks identical to a HUD that never moved. Printing it
+	turns "the lives did not move" into a fact rather than a guess.
+]]
+do
+	local uis = game:GetService("UserInputService")
+	local camera = workspace.CurrentCamera
+	local viewport = if camera then camera.ViewportSize else Vector2.zero
+	print(
+		string.format(
+			"[Client] layout: touch=%s (TouchEnabled=%s MouseEnabled=%s Keyboard=%s) viewport=%dx%d",
+			tostring(Device.isTouch()),
+			tostring(uis.TouchEnabled),
+			tostring(uis.MouseEnabled),
+			tostring(uis.KeyboardEnabled),
+			viewport.X,
+			viewport.Y
+		)
+	)
+	print(
+		`[Client] lives sit {if Device.isTouch() then "top-left above the bars" else "bottom-right"}`
+	)
+end
 
 print("[Client] ready — WASD move, Shift sprint, F flashlight, any mouse button fires, R reload")
