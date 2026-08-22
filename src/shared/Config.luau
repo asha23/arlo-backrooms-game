@@ -79,10 +79,10 @@ local Config = {
 
 			Keep these dark. They are lamps seen from below, not light sources.
 		]]
-		FixtureColor = Color3.fromRGB(104, 100, 84),
-		DeadFixtureColor = Color3.fromRGB(34, 33, 30),
-		FixtureDimColor = Color3.fromRGB(46, 44, 38),
-		SpawnFixtureColor = Color3.fromRGB(126, 122, 104),
+		FixtureColor = Color3.fromRGB(198, 192, 165),
+		DeadFixtureColor = Color3.fromRGB(74, 70, 62),
+		FixtureDimColor = Color3.fromRGB(96, 92, 80),
+		SpawnFixtureColor = Color3.fromRGB(214, 208, 180),
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
@@ -106,11 +106,14 @@ local Config = {
 			leaving long stretches where the flashlight actually matters.
 		]]
 		DeadLightChance = 0.28,
-		DeadLightBrightness = 0.1,
+		-- Dead fixtures get no PointLight at all; their faint glow comes from
+		-- the Neon panel alone. That removes roughly a quarter of the level's
+		-- lights outright at no visual cost.
+		DeadLightBrightness = 0,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 0.9,
-		SpawnLightRange = 26,
+		SpawnLightBrightness = 2.4,
+		SpawnLightRange = 40,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
@@ -119,7 +122,11 @@ local Config = {
 		WallMaterial = Enum.Material.SmoothPlastic,
 		FloorColor = Color3.fromRGB(186, 100, 26),
 		FloorMaterial = Enum.Material.SmoothPlastic,
-		CeilingColor = Color3.fromRGB(240, 233, 214),
+		-- The ceiling is the same surface as the walls. It was previously a
+		-- near-white slab spanning the whole level, which read as one enormous
+		-- area light and washed everything out. Only the fixtures should look
+		-- like light sources.
+		CeilingColor = Color3.fromRGB(196, 106, 29),
 		CeilingMaterial = Enum.Material.SmoothPlastic,
 	},
 
@@ -258,28 +265,28 @@ local Config = {
 		Sounds = {
 			-- Constant low drone that gives the thing away before you see it.
 			Drone = {
-				Id = "rbxasset://sounds/bass.mp3",
+				Id = "",
 				Pitch = 0.28,
 				Volume = 0.55,
 				Range = 70,
 			},
 			-- Occasional vocalisation while it wanders.
 			Idle = {
-				Id = "rbxasset://sounds/uuhhh.mp3",
+				Id = "",
 				Pitch = 0.42,
 				Volume = 0.7,
 				Range = 85,
 			},
 			-- Fires once, the moment it spots you.
 			Alert = {
-				Id = "rbxasset://sounds/halt.wav",
+				Id = "",
 				Pitch = 0.5,
 				Volume = 1,
 				Range = 120,
 			},
 			-- Rhythmic scrape while chasing.
 			Chase = {
-				Id = "rbxasset://sounds/swoosh.mp3",
+				Id = "",
 				Pitch = 0.55,
 				Volume = 0.8,
 				Range = 95,
@@ -297,7 +304,7 @@ local Config = {
 			related; the beating between them is what makes it unpleasant.
 		]]
 		DeathScream = {
-			Id = "rbxasset://sounds/uuhhh.mp3",
+			Id = "",
 			Range = 220,
 			-- StartPitch -> EndPitch over SlideTime, per layer.
 			Layers = {
@@ -369,7 +376,7 @@ local Config = {
 	PickupAudio = {
 		-- A magazine seating home when you collect a weapon.
 		Weapon = {
-			Id = "rbxasset://sounds/switch3.wav",
+			Id = "",
 			Pitch = 0.75,
 			Volume = 1,
 			Range = 45,
@@ -377,7 +384,7 @@ local Config = {
 		-- Second click a beat later, so it reads as a magazine rather than a
 		-- light switch.
 		WeaponSecondClick = {
-			Id = "rbxasset://sounds/switch3.wav",
+			Id = "",
 			Pitch = 1.1,
 			Volume = 0.8,
 			Range = 45,
@@ -421,7 +428,7 @@ local Config = {
 		},
 
 		Health = {
-			Id = "rbxasset://sounds/electronicpingshort.wav",
+			Id = "",
 			Pitch = 1.5,
 			Volume = 0.9,
 			Range = 45,
@@ -437,12 +444,35 @@ local Config = {
 	WeaponAudio = {
 		-- Dry fire: a bare mechanical click so an empty magazine is instantly
 		-- distinguishable from the game simply not registering the input.
-		DryFireId = "rbxasset://sounds/switch3.wav",
+		DryFireId = "",
 		DryFirePitch = 1.6,
 		DryFireVolume = 0.55,
 		-- Minimum gap between clicks, so holding the trigger on an empty gun
 		-- makes one click rather than a machine-gun of them.
 		DryFireCooldown = 0.35,
+	},
+
+	--[[
+		AUDIO IS OFF BY DEFAULT, AND EVERY SOUND ID IS EMPTY.
+
+		The project previously used `rbxasset://sounds/...` paths on the
+		assumption that those ship with the Roblox client and need no upload.
+		They do not resolve locally: Roblox fetches them over HTTP from
+		assetdelivery.roblox.com, and here every one of them failed —
+		"Asset is not approved", then connection timeouts after 5 seconds each.
+
+		That is not merely silent, it is dangerous. Firing a burst weapon
+		creates ten Sound instances in under a second, each starting its own
+		hanging HTTP request. Eighty failed loads in one session was enough to
+		take Studio down completely.
+
+		So: no sound is created at all unless Enabled is true AND the specific
+		id is non-empty. To add audio, upload your files to Roblox, paste the
+		`rbxassetid://...` values into the fields below, and set Enabled = true.
+		Anything you leave empty simply stays silent.
+	]]
+	Audio = {
+		Enabled = false,
 	},
 
 	Ambience = {
@@ -459,7 +489,7 @@ local Config = {
 		MusicId = "",
 		MusicVolume = 0.5,
 
-		DroneId = "rbxasset://sounds/bass.mp3",
+		DroneId = "",
 		-- Pitch and base volume for each layer of the bed.
 		DroneLayers = {
 			{ Pitch = 0.18, Volume = 0.34 },
@@ -472,9 +502,9 @@ local Config = {
 
 		-- Occasional distant noises, so the level isn't only a flat drone.
 		StingerIds = {
-			"rbxasset://sounds/snap.mp3",
-			"rbxasset://sounds/metal.ogg",
-			"rbxasset://sounds/electronicpingshort.wav",
+			"",
+			"",
+			"",
 		},
 		StingerGap = { 18, 48 },
 		StingerVolume = 0.3,

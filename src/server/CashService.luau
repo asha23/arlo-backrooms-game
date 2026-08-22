@@ -119,7 +119,7 @@ function CashService.drop(position: Vector3)
 				collected = true
 				ScoreService.addCash(player, SETTINGS.DropValue)
 				SoundKit.playOnce(root, {
-					Id = "rbxasset://sounds/electronicpingshort.wav",
+					Id = "",
 					Pitch = 1.2,
 					Volume = 0.8,
 					Range = 40,

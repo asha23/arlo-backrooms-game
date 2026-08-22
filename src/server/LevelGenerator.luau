@@ -251,16 +251,23 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 				fixture:AddTag("Stable")
 			end
 
+			--[[
+				Dead fixtures carry no PointLight at all. Their faint presence
+				comes from the Neon panel alone, which costs the renderer
+				nothing. That removes roughly a quarter of the level's lights
+				with no visible difference.
+			]]
+			if dead then
+				continue
+			end
+
 			local light = Instance.new("PointLight")
-			local base = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.32, 0.55)
-			light.Brightness = base * LEVEL.LightScale
-			-- Range is reach, not brightness: kept wide enough that every open
-			-- cell falls inside some fixture's falloff (worst case measured at
-			-- 25.5 studs), while Brightness stays low so it reads as gloom.
-			light.Range = 28
-			light.Color = if dead
-				then Color3.fromRGB(190, 200, 210)
-				else Color3.fromRGB(255, 247, 214)
+			light.Brightness = rng:NextNumber(0.9, 1.3) * LEVEL.LightScale
+			-- Range is reach, not brightness: wide enough that every open cell
+			-- falls inside some fixture's falloff (worst case measured at 25.5
+			-- studs), while Brightness decides how bright it actually reads.
+			light.Range = 30
+			light.Color = Color3.fromRGB(255, 247, 214)
 			--[[
 				No shadows on the corridor fixtures. Shadow-casting lights are
 				by far the scarcest thing in the renderer's budget, and with
@@ -297,7 +304,10 @@ local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 			local origin = cellToWorld(x, z)
 			local panel = newPart({
 				Name = "SpawnLight",
-				Size = Vector3.new(CELL * 0.8, 0.4, CELL * 0.8),
+				-- Same slim strip as every other fixture. This used to be a
+				-- 7-stud square of near-white Neon, which is why the spawn
+				-- area was blinding.
+				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
 				Color = LEVEL.SpawnFixtureColor,
 				Material = Enum.Material.Neon,

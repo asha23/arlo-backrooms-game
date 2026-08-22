@@ -24,7 +24,13 @@ local Ambience = {}
 
 local rng = Random.new()
 
-local function newSound(name: string, id: string, parent: Instance): Sound
+--- See Config.Audio. Returns nil rather than a Sound with an id that can't
+--- resolve, which would cost a hanging HTTP request per instance.
+local function newSound(name: string, id: string, parent: Instance): Sound?
+	if not Config.Audio.Enabled or id == "" then
+		return nil
+	end
+
 	local sound = Instance.new("Sound")
 	sound.Name = name
 	sound.SoundId = id
@@ -34,6 +40,9 @@ end
 
 local function playMusicTrack(parent: Instance)
 	local music = newSound("Music", SETTINGS.MusicId, parent)
+	if not music then
+		return
+	end
 	music.Looped = true
 	music.Volume = SETTINGS.MusicVolume
 	music:Play()
@@ -44,6 +53,9 @@ local function startDroneBed(parent: Instance)
 
 	for index, layer in SETTINGS.DroneLayers do
 		local sound = newSound(`Drone{index}`, SETTINGS.DroneId, parent)
+		if not sound then
+			continue
+		end
 		sound.Looped = true
 		sound.PlaybackSpeed = layer.Pitch
 		sound.Volume = layer.Volume
@@ -76,6 +88,9 @@ local function startStingers(parent: Instance)
 
 			local id = SETTINGS.StingerIds[rng:NextInteger(1, #SETTINGS.StingerIds)]
 			local stinger = newSound("Stinger", id, parent)
+			if not stinger then
+				continue
+			end
 			stinger.Volume = SETTINGS.StingerVolume
 			stinger.PlaybackSpeed =
 				rng:NextNumber(SETTINGS.StingerPitch[1], SETTINGS.StingerPitch[2])

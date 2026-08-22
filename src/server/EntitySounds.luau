@@ -42,13 +42,23 @@ export type EntitySounds = typeof(setmetatable(
 	EntitySounds
 ))
 
+--- See Config.Audio: an unresolvable SoundId costs a hanging HTTP request, so
+--- nothing is created unless audio is both enabled and configured.
+local function playable(id: string?): boolean
+	return Config.Audio.Enabled and id ~= nil and id ~= ""
+end
+
 local function build(
 	parent: BasePart,
 	name: string,
 	spec: SoundSpec,
 	looped: boolean,
 	pitchScale: number?
-): Sound
+): Sound?
+	if not playable(spec.Id) then
+		return nil
+	end
+
 	local sound = Instance.new("Sound")
 	sound.Name = name
 	sound.SoundId = spec.Id
@@ -156,6 +166,10 @@ function EntitySounds.playDeath(self: EntitySounds)
 
 	local scream = SETTINGS.DeathScream
 	local emitter = self._emitter
+
+	if not playable(scream.Id) then
+		return
+	end
 
 	for index, layer in scream.Layers do
 		task.delay(layer.Delay, function()

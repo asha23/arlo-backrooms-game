@@ -147,13 +147,20 @@ local function equippedWeaponId(): string?
 end
 
 function WeaponController.new(hitmarker: Frame?): WeaponController
+	--[[
+		See Config.Audio. This Sound is created once and reused, but it still
+		must not exist with an id that cannot resolve — Roblox would retry the
+		fetch on every Play().
+	]]
 	local audio = Config.WeaponAudio
 	local dryFire = Instance.new("Sound")
-	dryFire.Name = "DryFire"
-	dryFire.SoundId = audio.DryFireId
-	dryFire.PlaybackSpeed = audio.DryFirePitch
-	dryFire.Volume = audio.DryFireVolume
-	dryFire.Parent = SoundService
+	if Config.Audio.Enabled and audio.DryFireId ~= "" then
+		dryFire.Name = "DryFire"
+		dryFire.SoundId = audio.DryFireId
+		dryFire.PlaybackSpeed = audio.DryFirePitch
+		dryFire.Volume = audio.DryFireVolume
+		dryFire.Parent = SoundService
+	end
 
 	local self = setmetatable({
 		ammo = {},
@@ -323,7 +330,11 @@ function WeaponController.playDryFire(self: WeaponController)
 		return
 	end
 	self._lastDryFire = now
-	self._dryFire:Play()
+	-- Left unparented when audio is off or unconfigured; playing it would be a
+	-- no-op, but not calling Play at all is clearer about the intent.
+	if self._dryFire.Parent then
+		self._dryFire:Play()
+	end
 end
 
 function WeaponController.flashHitmarker(self: WeaponController, strong: boolean)

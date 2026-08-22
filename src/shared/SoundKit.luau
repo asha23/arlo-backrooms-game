@@ -9,6 +9,9 @@
 ]]
 
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 export type Spec = {
 	Id: string,
@@ -26,8 +29,24 @@ local SoundKit = {}
 
 local rng = Random.new()
 
---- Creates a configured, unplayed Sound parented to `parent`.
-function SoundKit.create(parent: Instance, spec: Spec): Sound
+--[[
+	True when a sound may actually be created.
+
+	A Sound with an unresolvable SoundId is not merely silent: Roblox tries to
+	fetch it over HTTP, and a weapon firing a ten-round burst starts ten hanging
+	requests in under a second. That is what previously crashed Studio, so this
+	is a hard gate rather than a preference.
+]]
+local function playable(spec: Spec): boolean
+	return Config.Audio.Enabled and spec.Id ~= nil and spec.Id ~= ""
+end
+
+--- Creates a configured, unplayed Sound, or nil if audio is off or unset.
+function SoundKit.create(parent: Instance, spec: Spec): Sound?
+	if not playable(spec) then
+		return nil
+	end
+
 	local sound = Instance.new("Sound")
 	sound.SoundId = spec.Id
 	sound.Volume = spec.Volume or 1
@@ -58,9 +77,12 @@ function SoundKit.create(parent: Instance, spec: Spec): Sound
 	return sound
 end
 
---- Plays a sound once and cleans it up afterwards.
-function SoundKit.playOnce(parent: Instance, spec: Spec): Sound
+--- Plays a sound once and cleans it up afterwards. No-op when audio is off.
+function SoundKit.playOnce(parent: Instance, spec: Spec): Sound?
 	local sound = SoundKit.create(parent, spec)
+	if not sound then
+		return nil
+	end
 	sound:Play()
 	-- Debris rather than the Ended signal: Ended never fires if the parent is
 	-- destroyed mid-playback, which would leak the instance.
