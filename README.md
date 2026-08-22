@@ -80,6 +80,12 @@ value than a mouse.
 - **Procedural Level 0.** A randomised depth-first maze with extra loops and
   open halls carved in, wrapped in a sealed perimeter. New seed every server
   start (pin one via `Config.Level.Seed`).
+- **Lighting that is dim, never black.** A fixture every three cells means every
+  open cell in the level is within 26 studs of a light — verified by simulating
+  the generator, not by eye. Flickering fixtures *dim* rather than switch off,
+  and about 28% are dead on arrival: bright enough to make out the walls, too
+  dim to count as safety. Around 40% of the level drains sanity while 0% of it
+  is genuinely unlit.
 - **Flickering fluorescents.** Client-side, so each player sees a different room.
 - **Sprint** (hold Shift) with stamina.
 - **Flashlight** (press F) with a draining battery.

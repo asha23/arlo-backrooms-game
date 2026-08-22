@@ -82,7 +82,9 @@ local function buildRig(variant: Variant): Model
 	humanoid.WalkSpeed = variant.WalkSpeed
 	humanoid.RigType = Enum.HumanoidRigType.R6
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	humanoid.HipHeight = legSize.Y - torsoSize.Y / 2
+	-- For a custom rig this is the gap between the bottom of the RootPart and
+	-- the floor, which is exactly the leg length.
+	humanoid.HipHeight = legSize.Y
 	humanoid.Parent = model
 
 	local function joint(
@@ -214,7 +216,52 @@ local function nearestPlayer(position: Vector3): (Player?, number)
 	return best, bestDistance
 end
 
---- Walks the entity along a computed path. Returns false if the path failed.
+--[[
+	Every entity currently alive, so a sighting by one can be shared with the
+	rest. This is what makes them hunt as a pack rather than as a scattering of
+	independent wanderers.
+]]
+type Brain = {
+	lastSeenAt: Vector3?,
+	lostAt: number,
+	alerted: boolean,
+}
+
+local brains: { [Model]: Brain } = {}
+
+--- Tells every nearby entity where a player was just seen.
+local function broadcastAlert(origin: Vector3, position: Vector3, source: Model)
+	local radiusSquared = SETTINGS.AlertRadius ^ 2
+	for model, brain in brains do
+		if model == source or not model.Parent then
+			continue
+		end
+		local root = model.PrimaryPart
+		if not root or (root.Position - origin).Magnitude ^ 2 > radiusSquared then
+			continue
+		end
+		brain.lastSeenAt = position
+		brain.lostAt = os.clock()
+		brain.alerted = true
+	end
+end
+
+--[[
+	Walks the entity towards `goal`.
+
+	AgentHeight is the headroom the NAVMESH needs, not the entity's visual
+	height. It was previously set to the entity's own height (11 studs) inside a
+	level with exactly 12 studs of clearance, so ComputeAsync failed almost
+	everywhere — and a failed path left the entity standing still, which is
+	exactly the "they don't move" symptom. It is now sized to the space.
+
+	When pathfinding fails anyway we fall back to walking straight at the goal.
+	That's wrong in a maze but right in a corridor, and something moving badly
+	beats something not moving at all. The fallback yields, so a caller looping
+	on this can never spin.
+
+	Returns false if the walk was interrupted, so the caller can re-plan.
+]]
 local function followPath(model: Model, humanoid: Humanoid, goal: Vector3): boolean
 	local root = model.PrimaryPart
 	if not root then
@@ -222,26 +269,40 @@ local function followPath(model: Model, humanoid: Humanoid, goal: Vector3): bool
 	end
 
 	local path = PathfindingService:CreatePath({
-		AgentRadius = 2,
-		AgentHeight = 11,
+		AgentRadius = 1.8,
+		AgentHeight = 5,
 		AgentCanJump = false,
+		WaypointSpacing = 6,
 	})
 
 	local ok = pcall(function()
 		path:ComputeAsync(root.Position, goal)
 	end)
+
 	if not ok or path.Status ~= Enum.PathStatus.Success then
+		humanoid:MoveTo(goal)
+		task.wait(0.35)
 		return false
 	end
 
-	for _, waypoint in path:GetWaypoints() do
+	for index, waypoint in path:GetWaypoints() do
 		if humanoid.Health <= 0 or not model.Parent then
 			return false
 		end
+
 		humanoid:MoveTo(waypoint.Position)
-		local reached = humanoid.MoveToFinished:Wait()
-		if not reached then
-			return false -- blocked or timed out; recompute next tick
+		if not humanoid.MoveToFinished:Wait() then
+			return false -- blocked or timed out; re-plan next tick
+		end
+
+		--[[
+			Re-plan partway rather than walking the path out. A route computed
+			to where someone stood five seconds ago is stale, and following it
+			to the end makes the entity look like it's patrolling rather than
+			chasing.
+		]]
+		if index >= 3 then
+			return true
 		end
 	end
 	return true
@@ -250,47 +311,57 @@ end
 local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: Variant)
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = model.PrimaryPart :: BasePart
+	local brain: Brain = { lastSeenAt = nil, lostAt = 0, alerted = false }
+	brains[model] = brain
+
 	local lastAttack = 0
-	local lastSeenAt: Vector3? = nil
-	local lostAt = 0
 	local lastTick = os.clock()
 
 	while model.Parent and humanoid.Health > 0 do
 		local target, distance = nearestPlayer(root.Position)
 		local now = os.clock()
-		sounds:update(now - lastTick, target ~= nil and distance <= SETTINGS.SightRange)
+		local canSee = target ~= nil and distance <= SETTINGS.SightRange
+		sounds:update(now - lastTick, canSee or brain.alerted)
 		lastTick = now
 
-		if target and distance <= SETTINGS.SightRange then
-			local character = target.Character
-			local targetRoot = character
-				and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if targetRoot then
-				lastSeenAt = targetRoot.Position
-				lostAt = os.clock()
-				humanoid.WalkSpeed = variant.ChaseSpeed
+		local character = target and target.Character
+		local targetRoot = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 
-				if distance <= SETTINGS.AttackRange then
-					local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
-					if targetHumanoid and os.clock() - lastAttack >= SETTINGS.AttackCooldown then
-						lastAttack = os.clock()
-						targetHumanoid:TakeDamage(SETTINGS.AttackDamage)
-					end
-					humanoid:MoveTo(targetRoot.Position)
-					task.wait(0.2)
-					continue
+		if canSee and targetRoot then
+			brain.lastSeenAt = targetRoot.Position
+			brain.lostAt = now
+			brain.alerted = true
+			-- Bring the pack.
+			broadcastAlert(root.Position, targetRoot.Position, model)
+			humanoid.WalkSpeed = variant.ChaseSpeed
+
+			if distance <= SETTINGS.AttackRange then
+				local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if targetHumanoid and now - lastAttack >= SETTINGS.AttackCooldown then
+					lastAttack = now
+					targetHumanoid:TakeDamage(SETTINGS.AttackDamage)
 				end
-
-				followPath(model, humanoid, targetRoot.Position)
+				humanoid:MoveTo(targetRoot.Position)
+				task.wait(0.25)
 				continue
 			end
+
+			followPath(model, humanoid, targetRoot.Position)
+			continue
 		end
 
-		-- Lost them: search the last known position for a while, then wander.
-		if lastSeenAt and os.clock() - lostAt < SETTINGS.SearchTime then
-			followPath(model, humanoid, lastSeenAt)
+		--[[
+			Nobody in view. Either converge on the last known position — which
+			may have come from another entity's sighting, and is what makes a
+			group arrive together — or wander.
+		]]
+		local memory = brain.lastSeenAt
+		if memory and now - brain.lostAt < SETTINGS.SearchTime then
+			humanoid.WalkSpeed = variant.ChaseSpeed
+			followPath(model, humanoid, memory)
 		else
-			lastSeenAt = nil
+			brain.lastSeenAt = nil
+			brain.alerted = false
 			humanoid.WalkSpeed = variant.WalkSpeed
 			if #openPositions > 0 then
 				followPath(model, humanoid, openPositions[rng:NextInteger(1, #openPositions)])
@@ -298,7 +369,13 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: V
 				task.wait(1)
 			end
 		end
+
+		-- Guaranteed yield. Without it, any path that fails without yielding
+		-- turns this loop into a tight spin that starves the scheduler.
+		task.wait(0.05)
 	end
+
+	brains[model] = nil
 end
 
 --- Picks a spawn far enough from every player to not appear on top of them.
@@ -332,12 +409,7 @@ local function chooseVariant(): Variant
 	return SETTINGS.Variants[1]
 end
 
-local function spawnOne(folder: Folder)
-	local position = chooseSpawn()
-	if not position then
-		return
-	end
-
+local function spawnOne(folder: Folder, position: Vector3)
 	local variant = chooseVariant()
 	local model = buildRig(variant)
 	local standingHeight = variant.Build.LegSize.Y + variant.Build.TorsoSize.Y / 2
@@ -364,6 +436,42 @@ local function spawnOne(folder: Folder)
 	task.spawn(runAi, model, sounds, variant)
 end
 
+--[[
+	Spawns a small group in one place rather than one entity somewhere random.
+
+	Meeting three of them coming down the same corridor is a different
+	experience from meeting one, and it's the group that makes the alert
+	broadcast worth having — a pack that already starts together converges
+	faster than one assembled from across the level.
+]]
+local function spawnGroup(folder: Folder)
+	local anchor = chooseSpawn()
+	if not anchor then
+		return
+	end
+
+	local size = rng:NextInteger(SETTINGS.GroupSize[1], SETTINGS.GroupSize[2])
+	size = math.min(size, SETTINGS.MaxAlive - alive)
+	if size <= 0 then
+		return
+	end
+
+	-- Open cells near the anchor, gathered once. Snapping to a real cell is
+	-- what keeps a group member from starting inside a wall.
+	local nearby: { Vector3 } = {}
+	local radiusSquared = SETTINGS.GroupRadius ^ 2
+	for _, candidate in openPositions do
+		if (candidate - anchor).Magnitude ^ 2 <= radiusSquared then
+			table.insert(nearby, candidate)
+		end
+	end
+
+	for _ = 1, size do
+		local position = if #nearby > 0 then nearby[rng:NextInteger(1, #nearby)] else anchor
+		spawnOne(folder, position)
+	end
+end
+
 --- `positions` are the world-space centres of open floor cells.
 function EntityService.start(positions: { Vector3 })
 	openPositions = positions
@@ -377,7 +485,7 @@ function EntityService.start(positions: { Vector3 })
 			task.wait(SETTINGS.SpawnInterval)
 			-- Only populate the maze while somebody is in it.
 			if alive < SETTINGS.MaxAlive and #Players:GetPlayers() > 0 then
-				spawnOne(folder)
+				spawnGroup(folder)
 			end
 		end
 	end)

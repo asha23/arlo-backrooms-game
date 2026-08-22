@@ -190,29 +190,73 @@ end
 	Ceiling fluorescents. Each one is tagged so the client-side flicker effect
 	can find them without walking the whole workspace.
 ]]
+--[[
+	Nearest open cell to (x, z) within `reach`, or nil.
+
+	Light placement steps through the grid at a fixed spacing, and with a tight
+	maze most of those sample points land inside a wall. Placing a light only
+	when the sample happens to be open leaves whole corridors unlit; nudging to
+	the nearest open neighbour instead guarantees coverage.
+]]
+local function nearestOpen(grid: Grid, x: number, z: number, reach: number): (number?, number?)
+	for radius = 0, reach do
+		for dx = -radius, radius do
+			for dz = -radius, radius do
+				-- Only the ring at this radius, not the filled square.
+				if math.max(math.abs(dx), math.abs(dz)) ~= radius then
+					continue
+				end
+				local nx, nz = x + dx, z + dz
+				if nx >= 1 and nx <= SIZE and nz >= 1 and nz <= SIZE and grid[nx][nz] then
+					return nx, nz
+				end
+			end
+		end
+	end
+	return nil, nil
+end
+
 local function buildLights(grid: Grid, parent: Instance, rng: Random)
 	local spacing = LEVEL.LightSpacing
-	for x = 1, SIZE, spacing do
-		for z = 1, SIZE, spacing do
-			if not grid[x][z] then
+	local placed: { [string]: boolean } = {}
+
+	for sampleX = 1, SIZE, spacing do
+		for sampleZ = 1, SIZE, spacing do
+			local x, z = nearestOpen(grid, sampleX, sampleZ, spacing)
+			if not x or not z then
 				continue
 			end
+			-- Two samples can nudge onto the same cell; don't stack fixtures.
+			local key = `{x},{z}`
+			if placed[key] then
+				continue
+			end
+			placed[key] = true
+
 			local origin = cellToWorld(x, z)
+			local dead = rng:NextNumber() < LEVEL.DeadLightChance
+
 			local fixture = newPart({
-				Name = "Fluorescent",
+				Name = if dead then "DeadFluorescent" else "Fluorescent",
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
-				Color = Color3.fromRGB(255, 250, 220),
+				Color = if dead then Color3.fromRGB(88, 84, 70) else Color3.fromRGB(255, 250, 220),
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)
 			fixture:AddTag("Fluorescent")
+			if dead then
+				-- Nothing left to flicker; it already failed.
+				fixture:AddTag("Stable")
+			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = rng:NextNumber(1.4, 2.2)
+			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(1.4, 2.2)
 			light.Range = 34
-			light.Color = Color3.fromRGB(255, 247, 214)
-			light.Shadows = true
+			light.Color = if dead
+				then Color3.fromRGB(190, 200, 210)
+				else Color3.fromRGB(255, 247, 214)
+			light.Shadows = not dead
 			light.Parent = fixture
 		end
 	end

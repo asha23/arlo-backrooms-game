@@ -53,30 +53,43 @@ cover.BorderSizePixel = 0
 cover.Parent = gui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 44)
-title.Position = UDim2.new(0, 0, 0.42, 0)
+title.Size = UDim2.new(1, -80, 0, 96)
+title.Position = UDim2.new(0, 40, 0.36, 0)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
-title.TextSize = 30
+title.TextSize = 34
+title.TextWrapped = true
 title.TextColor3 = Color3.fromRGB(232, 126, 34)
-title.Text = "LEVEL 0"
+title.Text = "GET READY TO EXPERIENCE THE BACKROOMS."
 title.Parent = cover
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, 0, 0, 22)
-status.Position = UDim2.new(0, 0, 0.42, 48)
+status.Size = UDim2.new(1, -80, 0, 26)
+status.Position = UDim2.new(0, 40, 0.36, 104)
 status.BackgroundTransparency = 1
 status.Font = Enum.Font.Code
-status.TextSize = 14
-status.TextColor3 = Color3.fromRGB(150, 144, 130)
-status.Text = "connecting..."
+status.TextSize = 16
+status.TextColor3 = Color3.fromRGB(168, 160, 142)
+status.Text = "PLEASE WAIT, JUST LOADING"
 status.Parent = cover
+
+-- The step being waited on, under the fixed "PLEASE WAIT" line, so the copy
+-- stays put while the detail underneath changes.
+local detail = Instance.new("TextLabel")
+detail.Size = UDim2.new(1, -80, 0, 20)
+detail.Position = UDim2.new(0, 40, 0.36, 134)
+detail.BackgroundTransparency = 1
+detail.Font = Enum.Font.Code
+detail.TextSize = 13
+detail.TextColor3 = Color3.fromRGB(110, 105, 94)
+detail.Text = ""
+detail.Parent = cover
 
 local currentLabel = ""
 
 local function report(text: string)
 	currentLabel = text
-	status.Text = text
+	detail.Text = text
 end
 
 -- Pulse the label so a long wait doesn't look like a hang.
@@ -87,7 +100,7 @@ task.spawn(function()
 				status.TextTransparency = 0
 				break
 			end
-			status.TextTransparency = 0.25 + 0.35 * math.abs(math.sin(alpha * math.pi))
+			status.TextTransparency = 0.15 + 0.35 * math.abs(math.sin(alpha * math.pi))
 			RunService.Heartbeat:Wait()
 		end
 		RunService.Heartbeat:Wait()
@@ -109,24 +122,24 @@ local function waitFor(label: string, budget: number, predicate: () -> boolean):
 	return true
 end
 
-waitFor("loading assets...", 30, function()
+waitFor("loading assets", 30, function()
 	return game:IsLoaded()
 end)
 
-waitFor("building level...", 30, function()
+waitFor("building level", 30, function()
 	local level = workspace:FindFirstChild("Level")
 	-- The floor is the first thing the generator emits; if it's there with a
 	-- decent number of walls alongside it, geometry has arrived.
 	return level ~= nil and level:FindFirstChild("Floor") ~= nil and #level:GetChildren() > 50
 end)
 
-waitFor("waiting for lighting...", 15, function()
+waitFor("lighting corridors", 15, function()
 	-- Spawn lighting is what guarantees you can see on arrival.
 	local level = workspace:FindFirstChild("Level")
 	return level ~= nil and level:FindFirstChild("SpawnLight") ~= nil
 end)
 
-waitFor("entering...", 30, function()
+waitFor("finding a way in", 30, function()
 	local character = player.Character
 	return character ~= nil
 		and character:FindFirstChild("HumanoidRootPart") ~= nil
@@ -138,7 +151,7 @@ end)
 	they have been drawn. Let real frames go by, then hold until the minimum
 	duration is up, so the fade always reveals a finished scene.
 ]]
-report("rendering...")
+report("rendering")
 for _ = 1, SETTLE_FRAMES do
 	RunService.RenderStepped:Wait()
 end
@@ -154,6 +167,7 @@ local fade = TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 TweenService:Create(cover, fade, { BackgroundTransparency = 1 }):Play()
 TweenService:Create(title, fade, { TextTransparency = 1 }):Play()
 TweenService:Create(status, fade, { TextTransparency = 1 }):Play()
+TweenService:Create(detail, fade, { TextTransparency = 1 }):Play()
 
 task.delay(1.3, function()
 	gui:Destroy()

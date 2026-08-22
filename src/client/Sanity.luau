@@ -35,7 +35,13 @@ function Sanity.new(): Sanity
 	}, Sanity)
 end
 
---- True if any enabled ceiling light is within LightRadius of the position.
+--[[
+	True if any ceiling light within LightRadius is burning at full brightness.
+
+	The brightness test matters: flickering fixtures dim rather than switch off,
+	so that no corner of the level is ever pitch black. Testing Enabled alone
+	would mean a stuttering light still counted as safety.
+]]
 local function isNearWorkingLight(position: Vector3): boolean
 	local radiusSquared = SETTINGS.LightRadius ^ 2
 	for _, fixture in CollectionService:GetTagged("Fluorescent") do
@@ -43,7 +49,7 @@ local function isNearWorkingLight(position: Vector3): boolean
 			continue
 		end
 		local light = fixture:FindFirstChildOfClass("PointLight")
-		if not light or not light.Enabled then
+		if not light or not light.Enabled or light.Brightness < SETTINGS.LitBrightness then
 			continue
 		end
 		if (fixture.Position - position).Magnitude ^ 2 <= radiusSquared then

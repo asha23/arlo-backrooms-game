@@ -8,19 +8,51 @@ local Config = {
 	Level = {
 		-- The maze is generated on an odd-sized grid where odd coordinates are
 		-- carve-able cells and even coordinates are the walls between them.
-		GridSize = 41, -- must be odd
-		CellSize = 12, -- studs per grid cell
-		WallHeight = 14,
-		-- Chance to knock through an extra wall after carving. Higher = more
-		-- loops and open halls, which is what makes it feel like the Backrooms
-		-- rather than a puzzle maze.
-		LoopChance = 0.16,
-		-- Chance a carved cell becomes part of a wide open room.
-		RoomChance = 0.05,
-		RoomRadius = 2,
-		LightSpacing = 4, -- place a ceiling light every N cells
+		GridSize = 49, -- must be odd
+		CellSize = 9, -- studs per grid cell; tighter corridors
+		-- Low enough to feel oppressive, high enough that the tallest entity
+		-- still clears it. Check Config.Entity.Variants before lowering this.
+		WallHeight = 12,
+		--[[
+			Chance to knock through an extra wall after carving.
+
+			This is the main claustrophobia dial. High values open the maze into
+			connected halls; low values leave it as narrow corridors and dead
+			ends with walls close on both sides. Enough loops remain that it
+			still reads as the Backrooms rather than as a puzzle maze.
+		]]
+		LoopChance = 0.05,
+		-- Chance a carved cell becomes part of a wider room, and how wide.
+		-- Kept rare and small: open space is a relief, and relief is not what
+		-- this level is for.
+		RoomChance = 0.012,
+		RoomRadius = 1,
+		LightSpacing = 3, -- place a ceiling light every N cells
 		-- The spawn room is deliberately over-lit: arriving in pitch darkness
 		-- with no bearings reads as a bug rather than as atmosphere.
+		--[[
+			Flicker floor.
+
+			Fluorescents dim rather than cut out, so no part of the level is
+			ever genuinely unlit — being unable to see at all reads as a bug,
+			not as atmosphere. Sanity still treats a dimmed light as darkness
+			(see Config.Sanity.LitBrightness), so the mechanic survives.
+		]]
+		FlickerDimBrightness = 0.22,
+
+		--[[
+			Proportion of fixtures that are simply dead.
+
+			With a light every three cells nowhere is unlit, which is what we
+			want visually — but it would also mean sanity never drains, since
+			nowhere counts as dark. Dead fixtures solve both: they glow faintly
+			enough to make out the walls, and sit below Config.Sanity.LitBrightness
+			so they still read as darkness to the sanity system. These are the
+			stretches you want a flashlight for.
+		]]
+		DeadLightChance = 0.28,
+		DeadLightBrightness = 0.45,
+
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
 		SpawnLightBrightness = 5,
 		SpawnLightRange = 70,
@@ -49,7 +81,14 @@ local Config = {
 		Max = 100,
 		DrainInDark = 3.5, -- per second with no nearby light
 		RegenInLight = 6, -- per second while lit
-		LightRadius = 26, -- studs; how close a light must be to count as "lit"
+		-- Studs; how close a working light must be to count as "lit". Kept
+		-- tight so safety means standing under a light, not being two
+		-- corridors away from one.
+		LightRadius = 15,
+		-- A light only counts as "lit" above this brightness. Flickering
+		-- fixtures dim below it, so they still light the room a little while
+		-- counting as darkness for sanity purposes.
+		LitBrightness = 0.8,
 	},
 
 	Ambience = {
@@ -105,8 +144,15 @@ local Config = {
 	},
 
 	Entity = {
-		MaxAlive = 8,
-		SpawnInterval = 6, -- seconds between spawn attempts
+		MaxAlive = 20,
+		SpawnInterval = 3, -- seconds between spawn attempts
+		-- They arrive in groups rather than one at a time, so you meet a pack
+		-- in a corridor instead of a lone figure.
+		GroupSize = { 2, 4 },
+		GroupRadius = 20, -- how far apart a group spawns
+		-- One that spots you tells everything within this range where you are.
+		-- This is what turns a scattering of wanderers into a hunt.
+		AlertRadius = 130,
 		-- Never spawn one closer than this to a player, so they don't just
 		-- appear in your face.
 		MinSpawnDistance = 70,
@@ -131,10 +177,10 @@ local Config = {
 				ChaseSpeed = 19,
 				Tendrils = 0,
 				Build = {
-					TorsoSize = Vector3.new(1.9, 3.4, 0.75),
-					HeadSize = Vector3.new(1.05, 1.5, 1.05),
-					ArmSize = Vector3.new(0.42, 4.6, 0.42),
-					LegSize = Vector3.new(0.55, 4.7, 0.55),
+					TorsoSize = Vector3.new(1.9, 3.1, 0.75),
+					HeadSize = Vector3.new(1.05, 1.4, 1.05),
+					ArmSize = Vector3.new(0.42, 4.1, 0.42),
+					LegSize = Vector3.new(0.55, 4.1, 0.55),
 					HeadColor = Color3.fromRGB(226, 222, 210),
 					BodyColor = Color3.fromRGB(18, 17, 20),
 					LimbColor = Color3.fromRGB(24, 23, 26),
@@ -152,10 +198,10 @@ local Config = {
 				ChaseSpeed = 21,
 				Tendrils = 4,
 				Build = {
-					TorsoSize = Vector3.new(1.7, 4.2, 0.6),
-					HeadSize = Vector3.new(1.0, 1.35, 1.0),
-					ArmSize = Vector3.new(0.34, 6.2, 0.34),
-					LegSize = Vector3.new(0.46, 5.6, 0.46),
+					TorsoSize = Vector3.new(1.7, 3.8, 0.6),
+					HeadSize = Vector3.new(1.0, 1.3, 1.0),
+					ArmSize = Vector3.new(0.34, 5.4, 0.34),
+					LegSize = Vector3.new(0.46, 4.9, 0.46),
 					-- Bright white, and slightly glossy so it catches the flashlight
 					-- from across a room.
 					HeadColor = Color3.fromRGB(248, 248, 246),
@@ -163,7 +209,7 @@ local Config = {
 					LimbColor = Color3.fromRGB(10, 10, 12),
 					HeadReflectance = 0.18,
 				},
-				TendrilSize = Vector3.new(0.22, 7.5, 0.22),
+				TendrilSize = Vector3.new(0.22, 6.4, 0.22),
 				TendrilColor = Color3.fromRGB(6, 6, 8),
 			},
 		},
@@ -174,7 +220,7 @@ local Config = {
 		SwayPeriod = 4.5, -- seconds per cycle
 
 		SightRange = 90,
-		AttackRange = 6,
+		AttackRange = 7,
 		AttackDamage = 18,
 		AttackCooldown = 1.2,
 		-- How long it keeps chasing your last known position after losing you.
