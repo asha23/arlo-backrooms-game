@@ -16,6 +16,10 @@ local function driveFixture(fixture: Instance)
 	if not fixture:IsA("BasePart") then
 		return
 	end
+	-- Spawn lighting is tagged Stable and must never cut out.
+	if fixture:HasTag("Stable") then
+		return
+	end
 	local light = fixture:FindFirstChildOfClass("PointLight")
 	if not light then
 		return

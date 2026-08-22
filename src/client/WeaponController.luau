@@ -32,6 +32,14 @@ export type WeaponController = typeof(setmetatable(
 	WeaponController
 ))
 
+--- Any mouse button fires — left, right or middle. Right-click doesn't need to
+--- rotate the camera because we're locked to first person.
+local FIRE_BUTTONS: { [Enum.UserInputType]: boolean } = {
+	[Enum.UserInputType.MouseButton1] = true,
+	[Enum.UserInputType.MouseButton2] = true,
+	[Enum.UserInputType.MouseButton3] = true,
+}
+
 local function tracer(from: Vector3, to: Vector3)
 	local distance = (to - from).Magnitude
 	if distance < 0.5 then
@@ -91,7 +99,7 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		if processed then
 			return
 		end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if FIRE_BUTTONS[input.UserInputType] then
 			self:setTrigger(true)
 		elseif input.KeyCode == Enum.KeyCode.R then
 			self:requestReload()
@@ -99,7 +107,7 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if FIRE_BUTTONS[input.UserInputType] then
 			self:setTrigger(false)
 		end
 	end)

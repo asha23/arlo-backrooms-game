@@ -218,6 +218,49 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 	end
 end
 
+--[[
+	Floods the spawn area with light.
+
+	These are tagged "Stable" as well as "Fluorescent" so the flicker effect
+	skips them — the one place in the level that should never go dark is where
+	you arrive. They still count as "lit" for the sanity system, which keys off
+	the Fluorescent tag.
+]]
+local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
+	local radius = LEVEL.SpawnLightRadius
+	for dx = -radius, radius do
+		for dz = -radius, radius do
+			local x, z = cell.X + dx, cell.Y + dz
+			if x < 1 or x > SIZE or z < 1 or z > SIZE or not grid[x][z] then
+				continue
+			end
+			-- Light the centre and a ring, not every single cell.
+			if (dx ~= 0 or dz ~= 0) and (math.abs(dx) + math.abs(dz)) % 2 == 1 then
+				continue
+			end
+
+			local origin = cellToWorld(x, z)
+			local panel = newPart({
+				Name = "SpawnLight",
+				Size = Vector3.new(CELL * 0.8, 0.4, CELL * 0.8),
+				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
+				Color = Color3.fromRGB(255, 253, 240),
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+			}, parent)
+			panel:AddTag("Fluorescent")
+			panel:AddTag("Stable")
+
+			local light = Instance.new("PointLight")
+			light.Brightness = LEVEL.SpawnLightBrightness
+			light.Range = LEVEL.SpawnLightRange
+			light.Color = Color3.fromRGB(255, 250, 230)
+			light.Shadows = false
+			light.Parent = panel
+		end
+	end
+end
+
 --- Nearest open cell to the middle of the grid, used for the spawn point.
 local function findSpawnCell(grid: Grid): Vector2
 	local centre = (SIZE + 1) // 2
@@ -279,6 +322,8 @@ function LevelGenerator.generate(): Grid
 	level.Parent = workspace
 
 	local spawnCell = findSpawnCell(grid)
+	buildSpawnLighting(grid, spawnCell, level)
+
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "Entry"
 	spawn.Size = Vector3.new(6, 1, 6)

@@ -19,7 +19,11 @@ local function container(): Folder
 		end
 		return folder :: Folder
 	end
-	return ReplicatedStorage:WaitForChild("Remotes") :: Folder
+	-- Bounded wait: a missing folder is a bug worth shouting about, not
+	-- something to hang the whole client script on.
+	local folder = ReplicatedStorage:WaitForChild("Remotes", 10)
+	assert(folder, "Remotes folder never replicated — did the server run Remotes.initialize()?")
+	return folder :: Folder
 end
 
 local function get<T>(name: string, className: string): T
@@ -34,10 +38,40 @@ local function get<T>(name: string, className: string): T
 		remote.Parent = parent
 		return remote :: any
 	end
-	return parent:WaitForChild(name) :: any
+	local remote = parent:WaitForChild(name, 10)
+	assert(remote, `Remote '{name}' never replicated — add it to Remotes.MANIFEST`)
+	return remote :: any
 end
 
+--[[
+	Every remote in the game, listed up front.
+
+	The server MUST create all of these before any client asks for one. They
+	used to be created lazily on first use, which meant a remote only fired
+	during gameplay (a tracer, a hit) didn't exist at startup — so the client's
+	WaitForChild blocked forever and every line after it in the client script
+	never ran. Listing them here and calling `Remotes.initialize()` on the
+	server makes that failure impossible to reintroduce.
+]]
+local MANIFEST: { [string]: string } = {
+	SanityChanged = "RemoteEvent",
+	LevelReady = "RemoteEvent",
+	FireWeapon = "RemoteEvent",
+	ReloadWeapon = "RemoteEvent",
+	AmmoChanged = "RemoteEvent",
+	ShotFired = "RemoteEvent",
+	HitConfirmed = "RemoteEvent",
+}
+
 local Remotes = {}
+
+--- Server-only. Creates every remote up front so no client can out-race one.
+function Remotes.initialize()
+	assert(IS_SERVER, "Remotes.initialize() must be called from the server")
+	for name, className in MANIFEST do
+		get(name, className)
+	end
+end
 
 -- Client -> Server: report the player's current sanity so the server can react
 -- (spawn events, kill the player at zero, etc).

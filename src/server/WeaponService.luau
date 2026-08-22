@@ -342,9 +342,20 @@ function WeaponService.start()
 		if not backpack then
 			return
 		end
-		local pistol = WeaponFactory.create("Pistol")
+		-- Backpack contents survive a respawn, so without this check every
+		-- death would add another pistol to the hotbar.
+		local existing = backpack:FindFirstChild("Pistol")
+		local pistol = existing :: Tool? or WeaponFactory.create("Pistol")
 		if pistol then
 			pistol.Parent = backpack
+			-- Equip it straight away so players start armed rather than having
+			-- to find the hotbar. EquipTool needs the character's Humanoid, and
+			-- the character may not have finished loading yet.
+			local character = player.Character or player.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+			if humanoid then
+				humanoid:EquipTool(pistol)
+			end
 		end
 		pushAmmo(player, "Pistol")
 	end

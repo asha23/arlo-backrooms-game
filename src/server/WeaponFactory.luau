@@ -25,12 +25,28 @@ local function part(name: string, size: Vector3, color: Color3, parent: Instance
 	return p
 end
 
---- Welds a cosmetic part to the handle at the given offset.
+--[[
+	Welds a cosmetic part to the handle at a fixed offset.
+
+	This uses a classic `Weld` with an explicit C0 rather than a
+	`WeldConstraint`. A WeldConstraint locks in whatever relative position the
+	two parts happen to have when the constraint first becomes active — and
+	inside an unequipped Tool the parts aren't simulated, so that moment is when
+	the Tool is equipped and the Handle snaps to the character's hand while the
+	cosmetic parts are still sitting at the origin. The constraint then welds
+	them hundreds of studs apart, producing one enormous rigid assembly that
+	drags the character to a halt.
+
+	A Weld's C0 is an explicit offset, so the geometry is identical no matter
+	where or when the tool is equipped.
+]]
 local function attach(handle: BasePart, piece: BasePart, offset: CFrame)
 	piece.CFrame = handle.CFrame * offset
-	local weld = Instance.new("WeldConstraint")
+	local weld = Instance.new("Weld")
 	weld.Part0 = handle
 	weld.Part1 = piece
+	weld.C0 = offset
+	weld.C1 = CFrame.identity
 	weld.Parent = handle
 end
 

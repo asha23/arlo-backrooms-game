@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local EntitySounds = require(script.Parent.EntitySounds)
 
 local SETTINGS = Config.Entity
 
@@ -149,15 +150,19 @@ local function followPath(model: Model, humanoid: Humanoid, goal: Vector3): bool
 	return true
 end
 
-local function runAi(model: Model)
+local function runAi(model: Model, sounds: EntitySounds.EntitySounds)
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = model.PrimaryPart :: BasePart
 	local lastAttack = 0
 	local lastSeenAt: Vector3? = nil
 	local lostAt = 0
+	local lastTick = os.clock()
 
 	while model.Parent and humanoid.Health > 0 do
 		local target, distance = nearestPlayer(root.Position)
+		local now = os.clock()
+		sounds:update(now - lastTick, target ~= nil and distance <= SETTINGS.SightRange)
+		lastTick = now
 
 		if target and distance <= SETTINGS.SightRange then
 			local character = target.Character
@@ -225,9 +230,14 @@ local function spawnOne(folder: Folder)
 	model.Parent = folder
 	alive += 1
 
+	local torso = model:FindFirstChild("Torso") :: BasePart
+	local sounds = EntitySounds.attach(torso)
+
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.Died:Connect(function()
 		alive -= 1
+		sounds:playDeath()
+		-- Long enough for the death cry to finish before the body vanishes.
 		task.delay(SETTINGS.RespawnDelay, function()
 			if model.Parent then
 				model:Destroy()
@@ -235,7 +245,7 @@ local function spawnOne(folder: Folder)
 		end)
 	end)
 
-	task.spawn(runAi, model)
+	task.spawn(runAi, model, sounds)
 end
 
 --- `positions` are the world-space centres of open floor cells.

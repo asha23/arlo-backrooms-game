@@ -54,13 +54,16 @@ and the crosshair always points where you're looking.
 
 | Input     | Action                |
 | --------- | --------------------- |
-| Mouse     | Aim                   |
-| WASD      | Move                  |
-| Shift     | Sprint (uses stamina) |
-| F         | Toggle flashlight     |
-| LMB       | Fire                  |
-| R         | Reload                |
-| 1/2/3     | Equip from backpack   |
+| Mouse            | Aim                   |
+| WASD             | Move                  |
+| Shift            | Sprint (uses stamina) |
+| F                | Toggle flashlight     |
+| Any mouse button | Fire                  |
+| R                | Reload                |
+| 1/2/3            | Equip from backpack   |
+
+You spawn with the pistol already equipped. The Roblox chat window is hidden by
+default — it steals keyboard focus, which matters when movement is on WASD.
 
 **Touch** — Roblox supplies the movement thumbstick, the jump button and
 drag-to-look; we add FIRE (hold to keep firing), RELOAD, SPRINT (a toggle) and
@@ -90,6 +93,20 @@ value than a mouse.
   take damage — including headshots.
 - **HUD** with three bars, a crosshair, hitmarker, ammo readout, and a vignette
   that closes in as sanity drops.
+
+## Audio
+
+There are no uploaded audio assets. Everything uses `rbxasset://` paths, which
+are the sound files that ship with the Roblox client, pitched well down and
+run through reverb. That means audio works the moment you clone the repo, with
+no uploads and no moderation wait — but they are stock effects doing a job they
+weren't written for, and should be replaced with real audio eventually.
+
+Roblox ships no *music*, so the score is synthesised: several copies of one low
+tone at different pitches, each drifting on its own slow volume cycle. The
+periods don't divide into each other, so the bed keeps shifting rather than
+looping audibly. Set `Config.Ambience.MusicId` to an `rbxassetid://` of your own
+track and that plays instead.
 
 ## Shooting is server-authoritative
 
