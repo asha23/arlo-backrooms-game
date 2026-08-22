@@ -91,11 +91,49 @@ local function buildTorch(anchored: boolean): Model
 	return model
 end
 
---- Attaches a torch to the player's left arm.
+--[[
+	Where the torch goes, best option first.
+
+	Players use their own Roblox avatar, and Roblox defaults new experiences to
+	R15 — which has no part called "Left Arm". Looking only for the R6 name
+	meant attach() quietly returned false for essentially every real player, so
+	give() reported failure and the pickup was never consumed. That is the whole
+	"I can't pick up the flashlight" bug: it was never picked up because the
+	game could not find a hand to put it in.
+
+	Each entry carries its own grip, because an R15 hand and an R6 whole-arm
+	part have very different origins.
+]]
+local LEFT_HAND_PARTS = {
+	{ name = "LeftHand", grip = CFrame.new(0, -0.25, -0.4) }, -- R15
+	{ name = "LeftLowerArm", grip = CFrame.new(0, -0.55, -0.4) }, -- R15, no hand
+	{ name = "Left Arm", grip = CFrame.new(0, -0.85, -0.35) }, -- R6
+}
+
+local function findGrip(character: Model): (BasePart?, CFrame)
+	for _, candidate in LEFT_HAND_PARTS do
+		local part = character:FindFirstChild(candidate.name)
+		if part and part:IsA("BasePart") then
+			return part, candidate.grip
+		end
+	end
+	return nil, CFrame.identity
+end
+
+--- Attaches a torch to the player's left hand, on either rig.
 local function attach(player: Player): boolean
 	local character = player.Character
-	local arm = character and character:FindFirstChild("Left Arm") :: BasePart?
-	if not character or not arm then
+	if not character then
+		return false
+	end
+
+	local arm, grip = findGrip(character)
+	if not arm then
+		-- Worth shouting about: it means a rig this code does not understand.
+		if not character:GetAttribute("TorchGripWarned") then
+			character:SetAttribute("TorchGripWarned", true)
+			warn(`[Flashlight] no left-hand part on {player.Name}'s character; cannot attach`)
+		end
 		return false
 	end
 
@@ -107,8 +145,6 @@ local function attach(player: Player): boolean
 	local model = buildTorch(false)
 	local body = model.PrimaryPart :: BasePart
 
-	-- Held pointing forward, at the bottom of the arm where a hand would be.
-	local grip = CFrame.new(0, -0.85, -0.35)
 	body.CFrame = arm.CFrame * grip
 
 	local weld = Instance.new("Weld")

@@ -395,7 +395,7 @@ local Config = {
 			Idle = {
 				Id = "rbxassetid://9113980319",
 				Pitch = 0.45,
-				Volume = 0.7,
+				Volume = 0.4,
 				Range = 85,
 			},
 			-- Fires once, the moment it spots you.
@@ -403,14 +403,14 @@ local Config = {
 			Alert = {
 				Id = "rbxassetid://9113980507",
 				Pitch = 0.7,
-				Volume = 1,
+				Volume = 0.5,
 				Range = 120,
 			},
 			-- Rhythmic scrape while chasing.
 			Chase = {
 				Id = "rbxassetid://9113980319",
 				Pitch = 0.85,
-				Volume = 0.8,
+				Volume = 0.45,
 				Range = 95,
 			},
 		},
@@ -431,11 +431,17 @@ local Config = {
 			Id = "rbxassetid://9043345732",
 			Range = 220,
 			-- StartPitch -> EndPitch over SlideTime, per layer.
+			--[[
+				Four layers at roughly 40% of their previous volume. The point
+				of the stack is the beating between detuned copies, not sheer
+				loudness — at full volume four of them at once simply clipped,
+				which is loud rather than frightening.
+			]]
 			Layers = {
-				{ StartPitch = 1.35, EndPitch = 0.22, Volume = 1, Delay = 0 },
-				{ StartPitch = 0.94, EndPitch = 0.16, Volume = 0.9, Delay = 0.06 },
-				{ StartPitch = 0.61, EndPitch = 0.11, Volume = 0.85, Delay = 0.13 },
-				{ StartPitch = 1.72, EndPitch = 0.4, Volume = 0.55, Delay = 0.21 },
+				{ StartPitch = 1.35, EndPitch = 0.22, Volume = 0.4, Delay = 0 },
+				{ StartPitch = 0.94, EndPitch = 0.16, Volume = 0.35, Delay = 0.06 },
+				{ StartPitch = 0.61, EndPitch = 0.11, Volume = 0.32, Delay = 0.13 },
+				{ StartPitch = 1.72, EndPitch = 0.4, Volume = 0.2, Delay = 0.21 },
 			},
 			SlideTime = 2.4,
 		},
