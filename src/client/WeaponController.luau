@@ -6,10 +6,12 @@
 ]]
 
 local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 
@@ -19,15 +21,24 @@ local camera = workspace.CurrentCamera
 local WeaponController = {}
 WeaponController.__index = WeaponController
 
+type AmmoState = { magazine: number, reserve: number, reloading: boolean }
+
 export type WeaponController = typeof(setmetatable(
 	{} :: {
-		weaponId: string?,
-		magazine: number,
-		reserve: number,
-		reloading: boolean,
+		-- Ammo for every weapon owned, keyed by weapon id.
+		--
+		-- This used to be a single set of fields for "the equipped weapon",
+		-- updated only when the incoming weapon id matched what was in hand.
+		-- The server pushes ammo when a weapon is GRANTED, which happens before
+		-- it is equipped, so that update was always discarded and the local
+		-- magazine sat at zero — which the fire check then read as "empty", so
+		-- no shot was ever requested. Keyed state has no such window.
+		ammo: { [string]: AmmoState },
 		_triggerHeld: boolean,
 		_lastFire: number,
+		_lastDryFire: number,
 		_hitmarker: Frame?,
+		_dryFire: Sound,
 	},
 	WeaponController
 ))
@@ -85,14 +96,21 @@ local function equippedWeaponId(): string?
 end
 
 function WeaponController.new(hitmarker: Frame?): WeaponController
+	local audio = Config.WeaponAudio
+	local dryFire = Instance.new("Sound")
+	dryFire.Name = "DryFire"
+	dryFire.SoundId = audio.DryFireId
+	dryFire.PlaybackSpeed = audio.DryFirePitch
+	dryFire.Volume = audio.DryFireVolume
+	dryFire.Parent = SoundService
+
 	local self = setmetatable({
-		weaponId = nil,
-		magazine = 0,
-		reserve = 0,
-		reloading = false,
+		ammo = {},
 		_triggerHeld = false,
 		_lastFire = 0,
+		_lastDryFire = 0,
 		_hitmarker = hitmarker,
+		_dryFire = dryFire,
 	}, WeaponController)
 
 	--[[
@@ -159,14 +177,11 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 	end
 
 	Remotes.AmmoChanged().OnClientEvent:Connect(function(weaponId, magazine, reserve, reloading)
-		-- Only track the weapon actually in hand.
-		if weaponId ~= equippedWeaponId() then
-			return
-		end
-		self.weaponId = weaponId
-		self.magazine = magazine
-		self.reserve = reserve
-		self.reloading = reloading
+		self.ammo[weaponId] = {
+			magazine = magazine,
+			reserve = reserve,
+			reloading = reloading,
+		}
 	end)
 
 	Remotes.ShotFired().OnClientEvent:Connect(function(_shooter, from, to)
@@ -198,6 +213,16 @@ function WeaponController.requestReload(_self: WeaponController)
 	Remotes.ReloadWeapon():FireServer()
 end
 
+--- Click on an empty magazine, rate-limited so holding the trigger clicks once.
+function WeaponController.playDryFire(self: WeaponController)
+	local now = os.clock()
+	if now - self._lastDryFire < Config.WeaponAudio.DryFireCooldown then
+		return
+	end
+	self._lastDryFire = now
+	self._dryFire:Play()
+end
+
 function WeaponController.flashHitmarker(self: WeaponController, strong: boolean)
 	local marker = self._hitmarker
 	if not marker then
@@ -226,7 +251,19 @@ function WeaponController.tryFire(self: WeaponController)
 	if now - self._lastFire < 1 / stats.FireRate then
 		return
 	end
-	if self.reloading or self.magazine <= 0 then
+
+	--[[
+		The local ammo check is an optimisation to avoid spamming the server,
+		not a rule. If we have no state for this weapon yet the request goes
+		anyway and the server decides — a client that hasn't heard about its
+		own ammo must never be locked out of firing.
+	]]
+	local state = self.ammo[weaponId]
+	if state and state.reloading then
+		return
+	end
+	if state and state.magazine <= 0 then
+		self:playDryFire()
 		return
 	end
 	self._lastFire = now
@@ -256,10 +293,14 @@ function WeaponController.ammoText(self: WeaponController): string?
 		return nil
 	end
 	local stats = WeaponConfig.Weapons[weaponId]
-	if self.reloading then
+	local state = self.ammo[weaponId]
+	if not state then
+		return `{stats.Name}  --`
+	end
+	if state.reloading then
 		return `{stats.Name}  ...reloading`
 	end
-	return `{stats.Name}  {self.magazine} / {self.reserve}`
+	return `{stats.Name}  {state.magazine} / {state.reserve}`
 end
 
 return WeaponController

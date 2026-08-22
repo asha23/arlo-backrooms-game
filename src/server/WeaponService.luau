@@ -259,6 +259,14 @@ local function giveWeapon(player: Player, weaponId: string): (Tool?, boolean)
 		return nil, false
 	end
 	tool.Parent = backpack
+
+	-- Re-send on every equip. The grant-time push can arrive before the client
+	-- knows the weapon exists, and a stale HUD reading 0 is indistinguishable
+	-- from being genuinely out of ammo.
+	tool.Equipped:Connect(function()
+		pushAmmo(player, weaponId)
+	end)
+
 	pushAmmo(player, weaponId)
 	return tool, true
 end
@@ -361,9 +369,16 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 
 				-- Only consume the pickup if it actually handed over a weapon;
 				-- walking over a gun you already own leaves it on the floor.
-				local _, wasNew = giveWeapon(player, weaponId)
-				if not wasNew then
+				local tool, wasNew = giveWeapon(player, weaponId)
+				if not wasNew or not tool then
 					continue
+				end
+
+				-- Equip straight away: rolling over a gun should arm you, not
+				-- put a thing in a menu you then have to go and find.
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					humanoid:EquipTool(tool)
 				end
 
 				available = false

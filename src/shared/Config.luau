@@ -111,9 +111,68 @@ local Config = {
 		-- appear in your face.
 		MinSpawnDistance = 70,
 		MaxSpawnDistance = 260,
-		Health = 120,
-		WalkSpeed = 13,
-		ChaseSpeed = 19,
+
+		--[[
+			Variants.
+
+			The silhouette is what frightens at the far end of a corridor, long
+			before any detail resolves — so the variants differ mainly in
+			proportion. All sizes are in studs; the ceiling is 14, so the tallest
+			of these clears the lights by a hand's width.
+
+			Weight is relative spawn frequency, not a percentage.
+		]]
+		Variants = {
+			{
+				Id = "Wanderer",
+				Weight = 3,
+				Health = 120,
+				WalkSpeed = 13,
+				ChaseSpeed = 19,
+				Tendrils = 0,
+				Build = {
+					TorsoSize = Vector3.new(1.9, 3.4, 0.75),
+					HeadSize = Vector3.new(1.05, 1.5, 1.05),
+					ArmSize = Vector3.new(0.42, 4.6, 0.42),
+					LegSize = Vector3.new(0.55, 4.7, 0.55),
+					HeadColor = Color3.fromRGB(226, 222, 210),
+					BodyColor = Color3.fromRGB(18, 17, 20),
+					LimbColor = Color3.fromRGB(24, 23, 26),
+					HeadReflectance = 0.04,
+				},
+			},
+			{
+				-- Slender: rarer, taller, slower to start and faster once it has
+				-- you. Black suit, a featureless white head, and tendrils that
+				-- only unfurl properly when it moves.
+				Id = "Slender",
+				Weight = 1,
+				Health = 240,
+				WalkSpeed = 10,
+				ChaseSpeed = 21,
+				Tendrils = 4,
+				Build = {
+					TorsoSize = Vector3.new(1.7, 4.2, 0.6),
+					HeadSize = Vector3.new(1.0, 1.35, 1.0),
+					ArmSize = Vector3.new(0.34, 6.2, 0.34),
+					LegSize = Vector3.new(0.46, 5.6, 0.46),
+					-- Bright white, and slightly glossy so it catches the flashlight
+					-- from across a room.
+					HeadColor = Color3.fromRGB(248, 248, 246),
+					BodyColor = Color3.fromRGB(8, 8, 10),
+					LimbColor = Color3.fromRGB(10, 10, 12),
+					HeadReflectance = 0.18,
+				},
+				TendrilSize = Vector3.new(0.22, 7.5, 0.22),
+				TendrilColor = Color3.fromRGB(6, 6, 8),
+			},
+		},
+
+		-- Slow idle sway, so they never look like a static prop. It never stops,
+		-- even while one is standing still watching you.
+		SwayAngle = 5, -- degrees
+		SwayPeriod = 4.5, -- seconds per cycle
+
 		SightRange = 90,
 		AttackRange = 6,
 		AttackDamage = 18,
@@ -159,16 +218,41 @@ local Config = {
 				Volume = 0.8,
 				Range = 95,
 			},
-			Death = {
-				Id = "rbxasset://sounds/uuhhh.mp3",
-				Pitch = 0.32,
-				Volume = 1,
-				Range = 110,
+		},
+
+		--[[
+			The death scream.
+
+			One sample can't scream. This stacks several copies of the same cry
+			at different pitches and starts them a beat apart, then slides every
+			one of them downwards while it plays — so it starts as a shriek,
+			detunes against itself into something that isn't a voice any more,
+			and drops away. The layers are deliberately not harmonically
+			related; the beating between them is what makes it unpleasant.
+		]]
+		DeathScream = {
+			Id = "rbxasset://sounds/uuhhh.mp3",
+			Range = 220,
+			-- StartPitch -> EndPitch over SlideTime, per layer.
+			Layers = {
+				{ StartPitch = 1.35, EndPitch = 0.22, Volume = 1, Delay = 0 },
+				{ StartPitch = 0.94, EndPitch = 0.16, Volume = 0.9, Delay = 0.06 },
+				{ StartPitch = 0.61, EndPitch = 0.11, Volume = 0.85, Delay = 0.13 },
+				{ StartPitch = 1.72, EndPitch = 0.4, Volume = 0.55, Delay = 0.21 },
 			},
+			SlideTime = 2.4,
 		},
 		-- Seconds between idle vocalisations, randomised in this range.
 		IdleSoundGap = { 7, 19 },
 		ChaseSoundGap = { 1.6, 3.2 },
+	},
+
+	Health = {
+		-- Medkits scattered through the maze. Rolling over one restores you to
+		-- full, so they're deliberately sparser than weapons.
+		SpawnCount = 14,
+		RespawnDelay = 40,
+		PickupRadius = 6,
 	},
 
 	Weapons = {
@@ -176,6 +260,17 @@ local Config = {
 		SpawnCount = 26,
 		RespawnDelay = 25,
 		PickupRadius = 7,
+	},
+
+	WeaponAudio = {
+		-- Dry fire: a bare mechanical click so an empty magazine is instantly
+		-- distinguishable from the game simply not registering the input.
+		DryFireId = "rbxasset://sounds/switch3.wav",
+		DryFirePitch = 1.6,
+		DryFireVolume = 0.55,
+		-- Minimum gap between clicks, so holding the trigger on an empty gun
+		-- makes one click rather than a machine-gun of them.
+		DryFireCooldown = 0.35,
 	},
 
 	Flashlight = {

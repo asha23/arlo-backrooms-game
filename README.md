@@ -88,9 +88,18 @@ value than a mouse.
 - **Weapons.** Pistol, Machine Gun and Sniper Rifle, scattered as pickups
   through the maze and rebuilt from primitives (no binary model assets). Stats
   live in `src/shared/WeaponConfig.luau`. Everyone spawns with a pistol.
-- **Hostiles.** Faceless wanderers that patrol the maze, chase on sight via
-  `PathfindingService`, search your last known position when they lose you, and
-  take damage — including headshots.
+- **Health.** Medkits scattered through the maze restore you to full on contact.
+  Weapons and medkits draw from one shuffled position pool, so two pickups can
+  never share a tile.
+- **Hostiles**, in two variants defined in `Config.Entity.Variants`:
+  - *Wanderer* — nine studs of nothing much, pale blank head, dark body.
+  - *Slender* — rarer, eleven studs, black suit, bright featureless head, arms
+    past the knees, and four tendrils off the back. Twice the health, slower to
+    start, faster once it has you.
+
+  Both patrol via `PathfindingService`, chase on sight, search your last known
+  position when they lose you, sway constantly so they never read as props, and
+  take damage — including headshots. They scream when they die.
 - **HUD** with three bars, a crosshair, hitmarker, ammo readout, and a vignette
   that closes in as sanity drops.
 

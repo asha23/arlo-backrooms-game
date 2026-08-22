@@ -17,8 +17,7 @@ local EntitySounds = require(script.Parent.EntitySounds)
 
 local SETTINGS = Config.Entity
 
-local BODY_COLOR = Color3.fromRGB(228, 222, 205)
-local LIMB_COLOR = Color3.fromRGB(198, 190, 172)
+export type Variant = typeof(SETTINGS.Variants[1])
 
 local EntityService = {}
 
@@ -39,46 +38,60 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 end
 
 --[[
-	Builds a minimal R6-shaped rig. The part names matter: Roblox's Humanoid
-	requires "HumanoidRootPart", "Torso" and "Head" to be named exactly this to
-	assemble and walk, and our headshot check keys off "Head".
-]]
-local function buildRig(): Model
-	local model = Instance.new("Model")
-	model.Name = "Wanderer"
+	Builds the rig.
 
-	local root = newPart("HumanoidRootPart", Vector3.new(2, 2, 1), BODY_COLOR, model)
+	The part names matter: Roblox's Humanoid requires "HumanoidRootPart",
+	"Torso" and "Head" spelled exactly this way to assemble and walk, and the
+	headshot check in WeaponService keys off "Head".
+
+	Proportions are deliberately wrong for a person — roughly ten studs tall on
+	a torso less than a stud deep, with arms that reach the shins. Joint offsets
+	are computed from the configured sizes rather than hardcoded, so the rig
+	stays assembled if you retune the build in Config.
+]]
+local function buildRig(variant: Variant): Model
+	local build = variant.Build
+
+	local model = Instance.new("Model")
+	model.Name = variant.Id
+
+	local torsoSize = build.TorsoSize
+	local headSize = build.HeadSize
+	local armSize = build.ArmSize
+	local legSize = build.LegSize
+
+	-- The root must match the torso so the physics assembly lines up.
+	local root = newPart("HumanoidRootPart", torsoSize, build.BodyColor, model)
 	root.Transparency = 1
 	root.CanCollide = false
 
-	local torso = newPart("Torso", Vector3.new(2, 2, 1), BODY_COLOR, model)
-	local head = newPart("Head", Vector3.new(1.4, 1.4, 1.4), BODY_COLOR, model)
-	local leftArm = newPart("Left Arm", Vector3.new(1, 2, 1), LIMB_COLOR, model)
-	local rightArm = newPart("Right Arm", Vector3.new(1, 2, 1), LIMB_COLOR, model)
-	local leftLeg = newPart("Left Leg", Vector3.new(1, 2, 1), LIMB_COLOR, model)
-	local rightLeg = newPart("Right Leg", Vector3.new(1, 2, 1), LIMB_COLOR, model)
+	local torso = newPart("Torso", torsoSize, build.BodyColor, model)
+	local head = newPart("Head", headSize, build.HeadColor, model)
+	local leftArm = newPart("Left Arm", armSize, build.LimbColor, model)
+	local rightArm = newPart("Right Arm", armSize, build.LimbColor, model)
+	local leftLeg = newPart("Left Leg", legSize, build.LimbColor, model)
+	local rightLeg = newPart("Right Leg", legSize, build.LimbColor, model)
 
-	-- Faceless: two dark voids where eyes would be.
-	for _, side in { -0.35, 0.35 } do
-		local eye = newPart("Eye", Vector3.new(0.28, 0.4, 0.1), Color3.fromRGB(12, 12, 12), head)
-		eye.CanCollide = false
-		eye.Massless = true
-		eye.CFrame = head.CFrame * CFrame.new(side, 0.15, -0.72)
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = head
-		weld.Part1 = eye
-		weld.Parent = head
-	end
+	-- No face at all. A blank head is worse than an angry one.
+	head.Material = Enum.Material.SmoothPlastic
+	head.Reflectance = build.HeadReflectance
 
 	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = SETTINGS.Health
-	humanoid.Health = SETTINGS.Health
-	humanoid.WalkSpeed = SETTINGS.WalkSpeed
+	humanoid.MaxHealth = variant.Health
+	humanoid.Health = variant.Health
+	humanoid.WalkSpeed = variant.WalkSpeed
+	humanoid.RigType = Enum.HumanoidRigType.R6
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humanoid.HipHeight = legSize.Y - torsoSize.Y / 2
 	humanoid.Parent = model
 
-	-- Standard R6 joint layout.
-	local function joint(name: string, part0: BasePart, part1: BasePart, c0: CFrame, c1: CFrame)
+	local function joint(
+		name: string,
+		part0: BasePart,
+		part1: BasePart,
+		c0: CFrame,
+		c1: CFrame
+	): Motor6D
 		local motor = Instance.new("Motor6D")
 		motor.Name = name
 		motor.Part0 = part0
@@ -86,17 +99,101 @@ local function buildRig(): Model
 		motor.C0 = c0
 		motor.C1 = c1
 		motor.Parent = part0
+		return motor
 	end
 
-	joint("RootJoint", root, torso, CFrame.new(), CFrame.new())
-	joint("Neck", torso, head, CFrame.new(0, 1, 0), CFrame.new(0, -0.7, 0))
-	joint("Left Shoulder", torso, leftArm, CFrame.new(-1.5, 0, 0), CFrame.new())
-	joint("Right Shoulder", torso, rightArm, CFrame.new(1.5, 0, 0), CFrame.new())
-	joint("Left Hip", torso, leftLeg, CFrame.new(-0.5, -2, 0), CFrame.new())
-	joint("Right Hip", torso, rightLeg, CFrame.new(0.5, -2, 0), CFrame.new())
+	joint("RootJoint", root, torso, CFrame.identity, CFrame.identity)
+
+	-- Head sits on top of the torso.
+	joint("Neck", torso, head, CFrame.new(0, torsoSize.Y / 2, 0), CFrame.new(0, -headSize.Y / 2, 0))
+
+	-- Arms hang from the shoulders, straight down.
+	local shoulderY = torsoSize.Y / 2 - armSize.X / 2
+	local shoulderX = torsoSize.X / 2 + armSize.X / 2
+	local armDrop = CFrame.new(0, armSize.Y / 2 - armSize.X / 2, 0)
+	joint("Left Shoulder", torso, leftArm, CFrame.new(-shoulderX, shoulderY, 0), armDrop)
+	joint("Right Shoulder", torso, rightArm, CFrame.new(shoulderX, shoulderY, 0), armDrop)
+
+	-- Legs hang from the hips.
+	local hipX = legSize.X * 0.75
+	local legDrop = CFrame.new(0, legSize.Y / 2, 0)
+	joint("Left Hip", torso, leftLeg, CFrame.new(-hipX, -torsoSize.Y / 2, 0), legDrop)
+	joint("Right Hip", torso, rightLeg, CFrame.new(hipX, -torsoSize.Y / 2, 0), legDrop)
+
+	--[[
+		Tendrils. Welded rather than jointed: they're scenery hanging off the
+		back, not limbs the Humanoid should try to animate. Splayed slightly so
+		the silhouette reads as more than one line, and long enough to trail
+		near the floor.
+	]]
+	local tendrilCount = variant.Tendrils or 0
+	if tendrilCount > 0 then
+		local size = (variant :: any).TendrilSize :: Vector3
+		local color = (variant :: any).TendrilColor :: Color3
+		for index = 1, tendrilCount do
+			-- Fan them across the back, alternating left and right.
+			local spread = ((index - 1) / math.max(tendrilCount - 1, 1)) - 0.5
+			local tendril = newPart(`Tendril{index}`, size, color, model)
+			tendril.CanCollide = false
+			tendril.Massless = true
+
+			local offset = CFrame.new(
+				spread * torsoSize.X * 1.4,
+				-size.Y / 2 + torsoSize.Y / 2,
+				torsoSize.Z
+			) * CFrame.Angles(math.rad(-14), 0, math.rad(spread * 40))
+			tendril.CFrame = torso.CFrame * offset
+
+			local weld = Instance.new("Weld")
+			weld.Part0 = torso
+			weld.Part1 = tendril
+			weld.C0 = offset
+			weld.C1 = CFrame.identity
+			weld.Parent = torso
+		end
+	end
 
 	model.PrimaryPart = root
 	return model
+end
+
+--[[
+	A slow sway on the neck and shoulders. Costs one CFrame per joint per tick
+	and does more for the impression of something alive than a walk cycle would:
+	it never stops, even when the thing is standing still watching you.
+]]
+local function swayRig(model: Model)
+	local torso = model:FindFirstChild("Torso") :: BasePart?
+	if not torso then
+		return
+	end
+	local neck = torso:FindFirstChild("Neck") :: Motor6D?
+	local leftShoulder = torso:FindFirstChild("Left Shoulder") :: Motor6D?
+	local rightShoulder = torso:FindFirstChild("Right Shoulder") :: Motor6D?
+
+	local baseNeck = if neck then neck.C0 else nil
+	local baseLeft = if leftShoulder then leftShoulder.C0 else nil
+	local baseRight = if rightShoulder then rightShoulder.C0 else nil
+
+	task.spawn(function()
+		local elapsed = rng:NextNumber(0, SETTINGS.SwayPeriod)
+		while model.Parent do
+			local delta = task.wait(0.06)
+			elapsed += delta
+			local wave = math.sin((elapsed / SETTINGS.SwayPeriod) * math.pi * 2)
+			local angle = math.rad(SETTINGS.SwayAngle) * wave
+
+			if neck and baseNeck then
+				neck.C0 = baseNeck * CFrame.Angles(0, angle * 0.6, angle * 0.4)
+			end
+			if leftShoulder and baseLeft then
+				leftShoulder.C0 = baseLeft * CFrame.Angles(angle, 0, 0)
+			end
+			if rightShoulder and baseRight then
+				rightShoulder.C0 = baseRight * CFrame.Angles(-angle, 0, 0)
+			end
+		end
+	end)
 end
 
 local function nearestPlayer(position: Vector3): (Player?, number)
@@ -126,7 +223,7 @@ local function followPath(model: Model, humanoid: Humanoid, goal: Vector3): bool
 
 	local path = PathfindingService:CreatePath({
 		AgentRadius = 2,
-		AgentHeight = 5,
+		AgentHeight = 11,
 		AgentCanJump = false,
 	})
 
@@ -150,7 +247,7 @@ local function followPath(model: Model, humanoid: Humanoid, goal: Vector3): bool
 	return true
 end
 
-local function runAi(model: Model, sounds: EntitySounds.EntitySounds)
+local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: Variant)
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = model.PrimaryPart :: BasePart
 	local lastAttack = 0
@@ -171,7 +268,7 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds)
 			if targetRoot then
 				lastSeenAt = targetRoot.Position
 				lostAt = os.clock()
-				humanoid.WalkSpeed = SETTINGS.ChaseSpeed
+				humanoid.WalkSpeed = variant.ChaseSpeed
 
 				if distance <= SETTINGS.AttackRange then
 					local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -194,7 +291,7 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds)
 			followPath(model, humanoid, lastSeenAt)
 		else
 			lastSeenAt = nil
-			humanoid.WalkSpeed = SETTINGS.WalkSpeed
+			humanoid.WalkSpeed = variant.WalkSpeed
 			if #openPositions > 0 then
 				followPath(model, humanoid, openPositions[rng:NextInteger(1, #openPositions)])
 			else
@@ -219,19 +316,38 @@ local function chooseSpawn(): Vector3?
 	return nil
 end
 
+--- Picks a variant by relative weight.
+local function chooseVariant(): Variant
+	local total = 0
+	for _, variant in SETTINGS.Variants do
+		total += variant.Weight
+	end
+	local roll = rng:NextNumber(0, total)
+	for _, variant in SETTINGS.Variants do
+		roll -= variant.Weight
+		if roll <= 0 then
+			return variant
+		end
+	end
+	return SETTINGS.Variants[1]
+end
+
 local function spawnOne(folder: Folder)
 	local position = chooseSpawn()
 	if not position then
 		return
 	end
 
-	local model = buildRig()
-	model:PivotTo(CFrame.new(position + Vector3.new(0, 3.5, 0)))
+	local variant = chooseVariant()
+	local model = buildRig(variant)
+	local standingHeight = variant.Build.LegSize.Y + variant.Build.TorsoSize.Y / 2
+	model:PivotTo(CFrame.new(position + Vector3.new(0, standingHeight + 0.5, 0)))
 	model.Parent = folder
 	alive += 1
 
 	local torso = model:FindFirstChild("Torso") :: BasePart
-	local sounds = EntitySounds.attach(torso)
+	local sounds = EntitySounds.attach(torso, variant.Id)
+	swayRig(model)
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.Died:Connect(function()
@@ -245,7 +361,7 @@ local function spawnOne(folder: Folder)
 		end)
 	end)
 
-	task.spawn(runAi, model, sounds)
+	task.spawn(runAi, model, sounds, variant)
 end
 
 --- `positions` are the world-space centres of open floor cells.
