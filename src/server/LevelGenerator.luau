@@ -12,6 +12,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local LightingService = require(script.Parent.LightingService)
 
 local LEVEL = Config.Level
 local SIZE = LEVEL.GridSize
@@ -241,7 +242,12 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
 				-- Neon: this colour IS the apparent brightness of the panel.
-				Color = if dead then LEVEL.DeadFixtureColor else LEVEL.FixtureColor,
+				-- Neon: this colour IS the apparent brightness of the panel, so
+				-- it has to be scaled by LightScale like everything else.
+				Color = LightingService.scaleColor(
+					if dead then LEVEL.DeadFixtureColor else LEVEL.FixtureColor,
+					LEVEL.LightScale
+				),
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)
@@ -262,7 +268,7 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = rng:NextNumber(0.9, 1.3) * LEVEL.LightScale
+			light.Brightness = rng:NextNumber(0.5, 0.75) * LEVEL.LightScale
 			-- Range is reach, not brightness: wide enough that every open cell
 			-- falls inside some fixture's falloff (worst case measured at 25.5
 			-- studs), while Brightness decides how bright it actually reads.
@@ -309,7 +315,7 @@ local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 				-- area was blinding.
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
-				Color = LEVEL.SpawnFixtureColor,
+				Color = LightingService.scaleColor(LEVEL.SpawnFixtureColor, LEVEL.LightScale),
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)

@@ -9,6 +9,7 @@ local EntityService = require(script.EntityService)
 local HealthService = require(script.HealthService)
 local MatchService = require(script.MatchService)
 local LevelGenerator = require(script.LevelGenerator)
+local LightingService = require(script.LightingService)
 local PlayerService = require(script.PlayerService)
 local ScoreService = require(script.ScoreService)
 local SpawnPoints = require(script.SpawnPoints)
@@ -16,6 +17,8 @@ local WeaponService = require(script.WeaponService)
 
 -- Before anything else: clients block on these existing.
 Remotes.initialize()
+
+LightingService.start()
 
 local grid = LevelGenerator.generate()
 local openPositions = LevelGenerator.openPositions(grid)

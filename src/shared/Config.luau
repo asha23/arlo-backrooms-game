@@ -64,7 +64,23 @@ local Config = {
 			fixtures, dead fixtures and spawn lighting keep their relationship
 			to each other.
 		]]
+		--[[
+			THE master brightness dial. This one genuinely controls everything.
+
+			Previous attempts at dimming failed because three separate things
+			make the level bright and each was tuned separately: the PointLights,
+			the emissive colour of the Neon fixture panels (a Neon part's
+			apparent brightness IS its colour), and Lighting.Ambient. Turning
+			one down while the others stayed put achieved very little.
+
+			LightScale now multiplies all three. Halve it and the whole level
+			halves. Everything below is the value at LightScale = 1.
+		]]
 		LightScale = 1,
+
+		-- Applied to Lighting.Ambient at runtime, scaled by LightScale. Kept
+		-- here rather than in default.project.json so one dial reaches it.
+		BaseAmbient = Color3.fromRGB(15, 14, 12),
 
 		--[[
 			Emissive colour of the fixture panels themselves.
@@ -79,10 +95,10 @@ local Config = {
 
 			Keep these dark. They are lamps seen from below, not light sources.
 		]]
-		FixtureColor = Color3.fromRGB(198, 192, 165),
-		DeadFixtureColor = Color3.fromRGB(74, 70, 62),
-		FixtureDimColor = Color3.fromRGB(96, 92, 80),
-		SpawnFixtureColor = Color3.fromRGB(214, 208, 180),
+		FixtureColor = Color3.fromRGB(112, 108, 92),
+		DeadFixtureColor = Color3.fromRGB(38, 36, 32),
+		FixtureDimColor = Color3.fromRGB(48, 46, 40),
+		SpawnFixtureColor = Color3.fromRGB(138, 133, 113),
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
@@ -112,8 +128,8 @@ local Config = {
 		DeadLightBrightness = 0,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 2.4,
-		SpawnLightRange = 40,
+		SpawnLightBrightness = 1.1,
+		SpawnLightRange = 34,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
@@ -442,6 +458,15 @@ local Config = {
 	},
 
 	WeaponAudio = {
+		--[[
+			Verified against Roblox's asset API before use: id 9125402735,
+			"Boom Impact Deep Distant Thumping Hits", by ProSoundEffects —
+			Roblox's officially licensed, free-to-use SFX library. It is a deep
+			impact rather than a purpose-made gunshot, but pitched per weapon it
+			reads as one, and it is known to exist rather than assumed to.
+		]]
+		FireSoundId = "rbxassetid://9125402735",
+
 		-- Dry fire: a bare mechanical click so an empty magazine is instantly
 		-- distinguishable from the game simply not registering the input.
 		DryFireId = "",
@@ -472,7 +497,21 @@ local Config = {
 		Anything you leave empty simply stays silent.
 	]]
 	Audio = {
-		Enabled = false,
+		Enabled = true,
+
+		--[[
+			Adding your own sounds
+			----------------------
+			In Studio: View -> Toolbox -> Audio, search, then right-click a
+			result and Copy Asset ID. Paste it as "rbxassetid://<id>" into the
+			relevant field. Anything left as "" simply stays silent — no sound
+			instance is created at all, so an unset id costs nothing.
+
+			Do NOT use "rbxasset://sounds/..." paths. They look like local
+			engine files but Roblox resolves them over HTTP and they fail
+			("Asset is not approved"), and a burst weapon firing ten of them a
+			second was enough to crash Studio outright.
+		]]
 	},
 
 	Ambience = {

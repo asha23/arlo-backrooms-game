@@ -22,7 +22,9 @@ export type Weapon = {
 	BurstCooldown: number, -- forced pause after a burst, in seconds
 	-- Degrees of upward camera kick per shot. Decays back automatically.
 	Recoil: number,
-	FireSound: { Id: string, Pitch: number, Volume: number, Range: number, Reverb: number },
+	-- The id itself is shared (Config.WeaponAudio.FireSoundId); only the
+	-- pitch and mix differ per weapon.
+	FireSound: { Pitch: number, Volume: number, Range: number, Reverb: number },
 	MagazineSize: number,
 	ReserveAmmo: number,
 	ReloadTime: number,
@@ -44,7 +46,6 @@ local Weapons: { [string]: Weapon } = {
 		BurstCooldown = 0,
 		Recoil = 0.6,
 		FireSound = {
-			Id = "",
 			Pitch = 0.85,
 			Volume = 0.75,
 			Range = 220,
@@ -70,7 +71,6 @@ local Weapons: { [string]: Weapon } = {
 		BurstCooldown = 0.4,
 		Recoil = 0.25,
 		FireSound = {
-			Id = "",
 			Pitch = 1.15,
 			Volume = 0.55,
 			Range = 260,
@@ -96,7 +96,6 @@ local Weapons: { [string]: Weapon } = {
 		BurstCooldown = 0,
 		Recoil = 1.5,
 		FireSound = {
-			Id = "",
 			Pitch = 0.42,
 			Volume = 1,
 			Range = 500,

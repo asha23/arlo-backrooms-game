@@ -112,6 +112,72 @@ local function muzzlePosition(subject: Player): Vector3?
 	return if muzzle then muzzle.WorldPosition else handle.Position
 end
 
+--[[
+	Gunfire, from a pool of one reusable Sound per weapon.
+
+	Deliberately NOT one Sound instance per shot. If an id ever fails to
+	resolve, Roblox retries the fetch for every instance created — ten rounds a
+	second becomes ten hanging HTTP requests a second, which is what previously
+	took Studio down. Three pooled sounds means a bad id costs three failed
+	fetches in total, whatever happens afterwards.
+
+	The trade-off is that a sound restarts rather than overlapping itself on
+	rapid fire, which for a machine gun is close to what you want anyway.
+]]
+local firePool: { [string]: Sound } = {}
+local fireEmitter: Part? = nil
+
+local function playFireSound(weaponId: string, position: Vector3)
+	local stats = WeaponConfig.Weapons[weaponId]
+	if not stats or not Config.Audio.Enabled or Config.WeaponAudio.FireSoundId == "" then
+		return
+	end
+
+	-- One shared emitter part, moved to each muzzle, so the sound stays
+	-- positional without churning instances.
+	local existing = fireEmitter
+	local emitter: Part
+	if existing and existing.Parent then
+		emitter = existing
+	else
+		emitter = Instance.new("Part")
+		emitter.Name = "FireEmitter"
+		emitter.Anchored = true
+		emitter.CanCollide = false
+		emitter.CanQuery = false
+		emitter.CanTouch = false
+		emitter.Transparency = 1
+		emitter.Size = Vector3.one
+		emitter.Parent = workspace
+		fireEmitter = emitter
+		-- Pooled sounds were parented to the old emitter; start fresh.
+		table.clear(firePool)
+	end
+	emitter.CFrame = CFrame.new(position)
+
+	local sound = firePool[weaponId]
+	if not sound then
+		local created = SoundKit.create(emitter, {
+			Id = Config.WeaponAudio.FireSoundId,
+			Pitch = stats.FireSound.Pitch,
+			Volume = stats.FireSound.Volume,
+			Range = stats.FireSound.Range,
+			Reverb = stats.FireSound.Reverb,
+		})
+		if not created then
+			return
+		end
+		created.Name = `Fire_{weaponId}`
+		firePool[weaponId] = created
+		sound = created
+	end
+
+	-- Slight per-shot pitch variation so repeated fire doesn't sound looped.
+	sound.PlaybackSpeed = stats.FireSound.Pitch * (0.94 + math.random() * 0.12)
+	sound.TimePosition = 0
+	sound:Play()
+end
+
 --- A brief bright flare at the muzzle.
 local function muzzleFlash(position: Vector3)
 	local flash = Instance.new("Part")
@@ -256,26 +322,8 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		]]
 		local muzzle = muzzlePosition(shooter) or from
 		local weaponId = weaponIdOf(shooter)
-		local stats = weaponId and WeaponConfig.Weapons[weaponId]
-		if stats then
-			local emitter = Instance.new("Part")
-			emitter.Anchored = true
-			emitter.CanCollide = false
-			emitter.CanQuery = false
-			emitter.CanTouch = false
-			emitter.Transparency = 1
-			emitter.Size = Vector3.one
-			emitter.CFrame = CFrame.new(muzzle)
-			emitter.Parent = workspace
-			SoundKit.playOnce(emitter, {
-				Id = stats.FireSound.Id,
-				Pitch = stats.FireSound.Pitch,
-				Volume = stats.FireSound.Volume,
-				Range = stats.FireSound.Range,
-				Reverb = stats.FireSound.Reverb,
-				PitchJitter = 0.07,
-			})
-			Debris:AddItem(emitter, 8)
+		if weaponId then
+			playFireSound(weaponId, muzzle)
 		end
 
 		muzzleFlash(muzzle)
