@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Client entry point. Owns the per-frame loop that drives sprint, flashlight,
-	sanity, weapons and the HUD, and re-attaches them whenever the character
+	weapons, score and the HUD, and re-attaches them whenever the character
 	respawns.
 
 	Ordering matters here. Anything that can yield — waiting on a character
@@ -20,7 +20,7 @@ local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
 local Recoil = require(script.Recoil)
-local Sanity = require(script.Sanity)
+local Remotes = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Remotes)
 local Sprint = require(script.Sprint)
 local TouchControls = require(script.TouchControls)
 local WeaponController = require(script.WeaponController)
@@ -34,7 +34,6 @@ Recoil.start()
 
 local flashlight = Flashlight.new()
 local sprint = Sprint.new()
-local sanity = Sanity.new()
 local hud = Hud.new()
 local weapons = WeaponController.new(hud:hitmarker())
 
@@ -64,7 +63,6 @@ local function onCharacterAdded(character: Model)
 	task.spawn(function()
 		flashlight:attach(character)
 		sprint:attach(character)
-		sanity:reset()
 	end)
 end
 
@@ -73,12 +71,27 @@ if player.Character then
 	onCharacterAdded(player.Character)
 end
 
+Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots)
+	hud:setScore(score, kills, headshots)
+end)
+
+Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, _killed)
+	if isHeadshot then
+		hud:flashHeadshot()
+	end
+end)
+
 RunService.RenderStepped:Connect(function(deltaTime)
 	sprint:update(deltaTime)
 	flashlight:update(deltaTime)
-	sanity:update(deltaTime, player.Character, flashlight.enabled)
 	weapons:update()
-	hud:update(sanity.value, flashlight.battery, sprint.stamina)
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local health = if humanoid then humanoid.Health else 0
+	local maxHealth = if humanoid then humanoid.MaxHealth else 100
+
+	hud:update(health, maxHealth, flashlight.battery, sprint.stamina)
 	hud:setAmmoText(weapons:ammoText())
 end)
 

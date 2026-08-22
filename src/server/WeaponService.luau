@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local ScoreService = require(script.Parent.ScoreService)
 local WeaponFactory = require(script.Parent.WeaponFactory)
 
 local SETTINGS = Config.Weapons
@@ -23,6 +24,13 @@ local SETTINGS = Config.Weapons
 -- How far the client's claimed muzzle position may be from its character
 -- before we reject the shot outright.
 local MAX_ORIGIN_ERROR = 14
+
+-- One colour per weapon, so the beacon says what it is before you reach it.
+local PICKUP_COLORS: { [string]: Color3 } = {
+	Pistol = Color3.fromRGB(120, 220, 255),
+	MachineGun = Color3.fromRGB(120, 255, 150),
+	SniperRifle = Color3.fromRGB(255, 170, 90),
+}
 -- Fire-rate tolerance, to absorb network jitter without allowing rapid fire.
 local RATE_TOLERANCE = 0.9
 
@@ -137,7 +145,16 @@ local function resolveShot(
 	local damage = stats.Damage * (if isHeadshot then stats.HeadshotMultiplier else 1)
 	humanoid:TakeDamage(damage)
 
-	Remotes.HitConfirmed():FireClient(player, hitPosition, isHeadshot, humanoid.Health <= 0)
+	local killed = humanoid.Health <= 0
+
+	--[[
+		The kill's value is read off the rig rather than looked up by name here,
+		so adding a variant scores correctly without touching this file.
+	]]
+	local worth = victim and victim:FindFirstChild("ScoreValue") :: IntValue?
+	ScoreService.registerHit(player, if worth then worth.Value else 0, isHeadshot, killed)
+
+	Remotes.HitConfirmed():FireClient(player, hitPosition, isHeadshot, killed)
 end
 
 local function onFire(player: Player, origin: unknown, direction: unknown)
@@ -369,6 +386,7 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 	if not template then
 		return
 	end
+	local weaponName = template.Name
 
 	local pedestal = Instance.new("Part")
 	pedestal.Name = `Pickup_{weaponId}`
@@ -388,12 +406,39 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 	end
 	display:PivotTo(pedestal.CFrame * CFrame.new(0, 1.2, 0))
 
-	-- A glow so pickups are findable in a dark maze.
+	--[[
+		Findability. All three weapons are built from the same primitives and
+		differ only in size, so on a dark floor they read as the same grey
+		shape — "I never see any machine guns" is a discovery problem, not a
+		spawning one. Each type gets its own beacon colour and a name that
+		floats above it, legible from the far end of a corridor.
+	]]
+	local tint = PICKUP_COLORS[weaponId] or Color3.fromRGB(120, 220, 255)
+
 	local beacon = Instance.new("PointLight")
-	beacon.Color = Color3.fromRGB(120, 220, 255)
-	beacon.Brightness = 1.6
-	beacon.Range = 16
+	beacon.Color = tint
+	beacon.Brightness = 1.3
+	beacon.Range = 18
 	beacon.Parent = pedestal
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Label"
+	billboard.Size = UDim2.fromOffset(150, 26)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 90
+	billboard.LightInfluence = 0
+	billboard.Parent = pedestal
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = tint
+	label.TextStrokeTransparency = 0.4
+	label.Text = weaponName
+	label.Parent = billboard
 
 	local available = true
 	display.Parent = pedestal
@@ -445,6 +490,7 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 				available = false
 				display.Parent = nil
 				beacon.Enabled = false
+				billboard.Enabled = false
 				task.delay(SETTINGS.RespawnDelay, function()
 					if pedestal.Parent then
 						available = true

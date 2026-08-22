@@ -1,8 +1,6 @@
 --!strict
 --[[
-	Sets characters up when they spawn and reacts to sanity hitting zero.
-	Sanity itself is simulated on the client (it's driven by what the player can
-	see); the server only receives the value and owns the consequences.
+	Sets characters up when they spawn.
 ]]
 
 local Players = game:GetService("Players")
@@ -33,21 +31,6 @@ function PlayerService.start()
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)
 	end
-
-	local sanityChanged = Remotes.SanityChanged()
-	sanityChanged.OnServerEvent:Connect(function(player, sanity)
-		if typeof(sanity) ~= "number" or sanity ~= sanity then
-			return
-		end
-		if sanity > 0 then
-			return
-		end
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.Health = 0
-		end
-	end)
 end
 
 return PlayerService

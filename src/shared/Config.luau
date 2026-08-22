@@ -35,27 +35,24 @@ local Config = {
 
 			Fluorescents dim rather than cut out, so no part of the level is
 			ever genuinely unlit — being unable to see at all reads as a bug,
-			not as atmosphere. Sanity still treats a dimmed light as darkness
-			(see Config.Sanity.LitBrightness), so the mechanic survives.
+			not as atmosphere.
 		]]
 		FlickerDimBrightness = 0.22,
 
 		--[[
 			Proportion of fixtures that are simply dead.
 
-			With a light every three cells nowhere is unlit, which is what we
-			want visually — but it would also mean sanity never drains, since
-			nowhere counts as dark. Dead fixtures solve both: they glow faintly
-			enough to make out the walls, and sit below Config.Sanity.LitBrightness
-			so they still read as darkness to the sanity system. These are the
-			stretches you want a flashlight for.
+			A light every three cells means nowhere is unlit — which is what we
+			want, but it also flattens the level into uniform brightness. Dead
+			fixtures break that up: they glow just enough to make out the walls,
+			leaving long stretches where the flashlight actually matters.
 		]]
 		DeadLightChance = 0.28,
-		DeadLightBrightness = 0.45,
+		DeadLightBrightness = 0.4,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 5,
-		SpawnLightRange = 70,
+		SpawnLightBrightness = 2,
+		SpawnLightRange = 38,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
@@ -77,74 +74,8 @@ local Config = {
 		SprintMinStamina = 10, -- can't start a sprint below this
 	},
 
-	Sanity = {
-		Max = 100,
-		DrainInDark = 3.5, -- per second with no nearby light
-		RegenInLight = 6, -- per second while lit
-		-- Studs; how close a working light must be to count as "lit". Kept
-		-- tight so safety means standing under a light, not being two
-		-- corridors away from one.
-		LightRadius = 15,
-		-- A light only counts as "lit" above this brightness. Flickering
-		-- fixtures dim below it, so they still light the room a little while
-		-- counting as darkness for sanity purposes.
-		LitBrightness = 0.8,
-	},
-
-	Ambience = {
-		--[[
-			Roblox's built-in `rbxasset://` library has sound effects but no
-			music, so by default we synthesise a drone bed instead: several
-			copies of the same low tone at different pitches, with volumes
-			drifting slowly against each other. It's tonal and unsettling and
-			needs no uploads.
-
-			Set MusicId to an `rbxassetid://` of your own track to use that
-			instead — the drone bed is switched off automatically.
-		]]
-		MusicId = "",
-		MusicVolume = 0.5,
-
-		DroneId = "rbxasset://sounds/bass.mp3",
-		-- Pitch and base volume for each layer of the bed.
-		DroneLayers = {
-			{ Pitch = 0.18, Volume = 0.34 },
-			{ Pitch = 0.27, Volume = 0.24 },
-			{ Pitch = 0.41, Volume = 0.15 },
-		},
-		-- Seconds for a layer's volume to complete one slow swell.
-		DronePeriods = { 23, 37, 53 },
-
-		-- Occasional distant noises, so the level isn't only a flat drone.
-		StingerIds = {
-			"rbxasset://sounds/snap.mp3",
-			"rbxasset://sounds/metal.ogg",
-			"rbxasset://sounds/electronicpingshort.wav",
-		},
-		StingerGap = { 18, 48 },
-		StingerVolume = 0.3,
-		StingerPitch = { 0.3, 0.65 },
-	},
-
-	Camera = {
-		-- First person locks the mouse to the centre of the screen and aims
-		-- where you look, which is what makes a shooter feel like a shooter.
-		-- Set false to fall back to Roblox's third-person orbit camera.
-		FirstPerson = true,
-		-- Multiplier on raw mouse/trackpad movement. Trackpads generally want
-		-- a higher value than a mouse.
-		Sensitivity = 1,
-		-- Touch look sensitivity, in degrees of turn per pixel dragged.
-		TouchSensitivity = 0.28,
-	},
-
-	Fog = {
-		Start = 90,
-		End = 340,
-	},
-
 	Entity = {
-		MaxAlive = 20,
+		MaxAlive = 10,
 		SpawnInterval = 3, -- seconds between spawn attempts
 		-- They arrive in groups rather than one at a time, so you meet a pack
 		-- in a corridor instead of a lone figure.
@@ -155,8 +86,16 @@ local Config = {
 		AlertRadius = 130,
 		-- Never spawn one closer than this to a player, so they don't just
 		-- appear in your face.
-		MinSpawnDistance = 70,
-		MaxSpawnDistance = 260,
+		MinSpawnDistance = 55,
+		--[[
+			Entities only exist near a player. Spawning across the whole level
+			meant most of them were pathfinding around empty corridors nobody
+			would ever see — pure server cost. Anything that drifts past
+			DespawnDistance is removed and its budget reused somewhere it
+			matters.
+		]]
+		MaxSpawnDistance = 150,
+		DespawnDistance = 260,
 
 		--[[
 			Variants.
@@ -173,8 +112,9 @@ local Config = {
 				Id = "Wanderer",
 				Weight = 3,
 				Health = 120,
-				WalkSpeed = 13,
-				ChaseSpeed = 19,
+				WalkSpeed = 14,
+				ChaseSpeed = 25,
+				Score = 100,
 				Tendrils = 0,
 				Build = {
 					TorsoSize = Vector3.new(1.9, 3.1, 0.75),
@@ -185,6 +125,12 @@ local Config = {
 					BodyColor = Color3.fromRGB(18, 17, 20),
 					LimbColor = Color3.fromRGB(24, 23, 26),
 					HeadReflectance = 0.04,
+					-- "Auto" picks black or glowing from the head's own
+					-- brightness: dark heads get eyes that glow, pale heads get
+					-- eyes that read as holes. Either way the eyes are the one
+					-- part of the face that exists.
+					EyeStyle = "Auto",
+					EyeGlowColor = Color3.fromRGB(255, 150, 60),
 				},
 			},
 			{
@@ -194,8 +140,9 @@ local Config = {
 				Id = "Slender",
 				Weight = 1,
 				Health = 240,
-				WalkSpeed = 10,
-				ChaseSpeed = 21,
+				WalkSpeed = 12,
+				ChaseSpeed = 27,
+				Score = 300,
 				Tendrils = 4,
 				Build = {
 					TorsoSize = Vector3.new(1.7, 3.8, 0.6),
@@ -208,23 +155,38 @@ local Config = {
 					BodyColor = Color3.fromRGB(8, 8, 10),
 					LimbColor = Color3.fromRGB(10, 10, 12),
 					HeadReflectance = 0.18,
+					-- Forced rather than Auto: two burning points on a blank
+					-- white head is a better silhouette than two dark dots.
+					EyeStyle = "Glow",
+					EyeGlowColor = Color3.fromRGB(255, 62, 48),
 				},
 				TendrilSize = Vector3.new(0.22, 6.4, 0.22),
 				TendrilColor = Color3.fromRGB(6, 6, 8),
 			},
 		},
 
-		-- Slow idle sway, so they never look like a static prop. It never stops,
-		-- even while one is standing still watching you.
-		SwayAngle = 5, -- degrees
-		SwayPeriod = 4.5, -- seconds per cycle
+		--[[
+			Limb animation. Roblox only animates a rig you give an Animator and
+			an uploaded animation asset; a procedural cycle driven straight off
+			the Motor6D joints needs neither, and reads correctly at any walk
+			speed because the phase advances with distance travelled.
+		]]
+		SwingAngle = 34, -- degrees of leg swing at full stride
+		ArmSwingRatio = 0.75, -- arms swing this fraction of the legs
+		StrideLength = 4.6, -- studs travelled per half-cycle
+		-- Idle sway, so a standing entity never reads as a static prop.
+		SwayAngle = 5,
+		SwayPeriod = 4.5,
 
-		SightRange = 90,
-		AttackRange = 7,
-		AttackDamage = 18,
-		AttackCooldown = 1.2,
+		SightRange = 150,
+		-- Inside this range it stops pathfinding and simply comes at you.
+		-- Pathfinding latency is what made them hesitate at close quarters.
+		LungeRange = 22,
+		AttackRange = 9,
+		AttackDamage = 22,
+		AttackCooldown = 0.75,
 		-- How long it keeps chasing your last known position after losing you.
-		SearchTime = 6,
+		SearchTime = 12,
 		RespawnDelay = 4,
 
 		--[[
@@ -293,6 +255,14 @@ local Config = {
 		ChaseSoundGap = { 1.6, 3.2 },
 	},
 
+	Score = {
+		-- Multiplier applied to a kill's value when the killing shot was a
+		-- headshot. Kill value itself is per-variant, in Entity.Variants.
+		HeadshotMultiplier = 2,
+		-- Awarded for a headshot that doesn't kill, so precision always pays.
+		HeadshotBonus = 25,
+	},
+
 	Health = {
 		-- Medkits scattered through the maze. Rolling over one restores you to
 		-- full, so they're deliberately sparser than weapons.
@@ -303,7 +273,9 @@ local Config = {
 
 	Weapons = {
 		-- Weapon pickups scattered through the maze at generation time.
-		SpawnCount = 26,
+		-- The maze got a great deal tighter, so a given pickup is much harder
+		-- to stumble across; this is per weapon type rather than in total.
+		SpawnCount = 45,
 		RespawnDelay = 25,
 		PickupRadius = 7,
 	},
@@ -326,6 +298,14 @@ local Config = {
 			Delay = 0.11,
 		},
 		-- Bright ascending sparkle for health.
+		Score = {
+			-- Multiplier applied to a kill's value when the killing shot was a
+			-- headshot. Kill value itself is per-variant, in Entity.Variants.
+			HeadshotMultiplier = 2,
+			-- Awarded for a headshot that doesn't kill, so precision always pays.
+			HeadshotBonus = 25,
+		},
+
 		Health = {
 			Id = "rbxasset://sounds/electronicpingshort.wav",
 			Pitch = 1.5,
@@ -349,6 +329,54 @@ local Config = {
 		-- Minimum gap between clicks, so holding the trigger on an empty gun
 		-- makes one click rather than a machine-gun of them.
 		DryFireCooldown = 0.35,
+	},
+
+	Ambience = {
+		--[[
+			Roblox's built-in `rbxasset://` library has sound effects but no
+			music, so by default we synthesise a drone bed instead: several
+			copies of the same low tone at different pitches, with volumes
+			drifting slowly against each other. It's tonal and unsettling and
+			needs no uploads.
+
+			Set MusicId to an `rbxassetid://` of your own track to use that
+			instead — the drone bed is switched off automatically.
+		]]
+		MusicId = "",
+		MusicVolume = 0.5,
+
+		DroneId = "rbxasset://sounds/bass.mp3",
+		-- Pitch and base volume for each layer of the bed.
+		DroneLayers = {
+			{ Pitch = 0.18, Volume = 0.34 },
+			{ Pitch = 0.27, Volume = 0.24 },
+			{ Pitch = 0.41, Volume = 0.15 },
+		},
+		-- Seconds for a layer's volume to complete one slow swell. The periods
+		-- don't divide into each other, so the bed never audibly loops.
+		DronePeriods = { 23, 37, 53 },
+
+		-- Occasional distant noises, so the level isn't only a flat drone.
+		StingerIds = {
+			"rbxasset://sounds/snap.mp3",
+			"rbxasset://sounds/metal.ogg",
+			"rbxasset://sounds/electronicpingshort.wav",
+		},
+		StingerGap = { 18, 48 },
+		StingerVolume = 0.3,
+		StingerPitch = { 0.3, 0.65 },
+	},
+
+	Camera = {
+		-- First person locks the mouse to the centre of the screen and aims
+		-- where you look, which is what makes a shooter feel like a shooter.
+		-- Set false to fall back to Roblox's third-person orbit camera.
+		FirstPerson = true,
+		-- Multiplier on raw mouse/trackpad movement. Trackpads generally want
+		-- a higher value than a mouse.
+		Sensitivity = 1,
+		-- Touch look sensitivity, in degrees of turn per pixel dragged.
+		TouchSensitivity = 0.28,
 	},
 
 	Flashlight = {

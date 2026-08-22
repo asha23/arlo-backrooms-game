@@ -6,9 +6,7 @@
 
 	A stuttering fixture DIMS rather than switching off. Somewhere you genuinely
 	cannot see reads as a broken game rather than as atmosphere, so nowhere in
-	the level ever goes fully black. The sanity system separately treats a
-	dimmed light as darkness, so the mechanic is unaffected — see
-	Config.Sanity.LitBrightness.
+	the level ever goes fully black.
 ]]
 
 local CollectionService = game:GetService("CollectionService")

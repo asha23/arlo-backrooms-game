@@ -89,8 +89,10 @@ value than a mouse.
 - **Flickering fluorescents.** Client-side, so each player sees a different room.
 - **Sprint** (hold Shift) with stamina.
 - **Flashlight** (press F) with a draining battery.
-- **Sanity.** Drains in the dark, regenerates in light. Zero is fatal. The client
-  simulates it and the server owns the consequence.
+- **Scoring.** Kills and headshots, tracked server-side and exposed both to the
+  HUD and as `leaderstats`, so the player list doubles as a scoreboard. A kill's
+  value is read off the rig, so a new variant scores correctly without touching
+  the weapon code. Headshots pay double on a kill, plus a bonus when they don't.
 - **Weapons.** Pistol, Machine Gun and Sniper Rifle, scattered as pickups
   through the maze and rebuilt from primitives (no binary model assets). Stats
   live in `src/shared/WeaponConfig.luau`. Everyone spawns with a pistol.
@@ -106,8 +108,8 @@ value than a mouse.
   Both patrol via `PathfindingService`, chase on sight, search your last known
   position when they lose you, sway constantly so they never read as props, and
   take damage — including headshots. They scream when they die.
-- **HUD** with three bars, a crosshair, hitmarker, ammo readout, and a vignette
-  that closes in as sanity drops.
+- **HUD** with score, health/battery/stamina bars, crosshair, hitmarker, ammo
+  readout, headshot callout, and a vignette that closes in as health drops.
 
 ## Weapons
 

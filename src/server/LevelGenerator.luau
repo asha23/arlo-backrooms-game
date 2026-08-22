@@ -251,7 +251,7 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(1.4, 2.2)
+			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.85, 1.3)
 			light.Range = 34
 			light.Color = if dead
 				then Color3.fromRGB(190, 200, 210)
@@ -267,8 +267,7 @@ end
 
 	These are tagged "Stable" as well as "Fluorescent" so the flicker effect
 	skips them — the one place in the level that should never go dark is where
-	you arrive. They still count as "lit" for the sanity system, which keys off
-	the Fluorescent tag.
+	you arrive.
 ]]
 local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 	local radius = LEVEL.SpawnLightRadius

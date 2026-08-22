@@ -54,13 +54,13 @@ end
 	server makes that failure impossible to reintroduce.
 ]]
 local MANIFEST: { [string]: string } = {
-	SanityChanged = "RemoteEvent",
 	LevelReady = "RemoteEvent",
 	FireWeapon = "RemoteEvent",
 	ReloadWeapon = "RemoteEvent",
 	AmmoChanged = "RemoteEvent",
 	ShotFired = "RemoteEvent",
 	HitConfirmed = "RemoteEvent",
+	ScoreChanged = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -71,12 +71,6 @@ function Remotes.initialize()
 	for name, className in MANIFEST do
 		get(name, className)
 	end
-end
-
--- Client -> Server: report the player's current sanity so the server can react
--- (spawn events, kill the player at zero, etc).
-function Remotes.SanityChanged(): RemoteEvent
-	return get("SanityChanged", "RemoteEvent")
 end
 
 -- Server -> Client: the level finished generating; safe to start the HUD.
@@ -109,6 +103,11 @@ end
 -- Server -> Client: the local player damaged something (drives the hitmarker).
 function Remotes.HitConfirmed(): RemoteEvent
 	return get("HitConfirmed", "RemoteEvent")
+end
+
+-- Server -> Client: authoritative score, kills and headshot count.
+function Remotes.ScoreChanged(): RemoteEvent
+	return get("ScoreChanged", "RemoteEvent")
 end
 
 return Remotes

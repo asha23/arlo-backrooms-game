@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Three bars in the corner: stamina, flashlight battery, sanity. Built in code
+	Score, three status bars, crosshair and hit feedback. Built in code
 	rather than as a .rbxmx so the whole UI stays reviewable in the diff.
 ]]
 
@@ -22,6 +22,9 @@ export type Hud = typeof(setmetatable(
 		_vignette: Frame,
 		_ammo: TextLabel,
 		_hitmarker: Frame,
+		_score: TextLabel,
+		_kills: TextLabel,
+		_headshot: TextLabel,
 	},
 	Hud
 ))
@@ -71,7 +74,7 @@ function Hud.new(): Hud
 	gui.IgnoreGuiInset = true
 	gui.Parent = playerGui
 
-	-- Darkens the screen edges as sanity falls.
+	-- Darkens the screen edges as health falls.
 	local vignette = Instance.new("Frame")
 	vignette.Name = "Vignette"
 	vignette.Size = UDim2.fromScale(1, 1)
@@ -108,6 +111,46 @@ function Hud.new(): Hud
 	hitmarker.Visible = false
 	hitmarker.Parent = gui
 
+	-- Score, top-left. Large enough to read without looking away from centre.
+	local score = Instance.new("TextLabel")
+	score.Name = "Score"
+	score.Size = UDim2.fromOffset(260, 34)
+	score.Position = UDim2.new(0, 24, 0, 24)
+	score.BackgroundTransparency = 1
+	score.Font = Enum.Font.GothamBold
+	score.TextSize = 28
+	score.TextColor3 = Color3.fromRGB(240, 236, 224)
+	score.TextStrokeTransparency = 0.5
+	score.TextXAlignment = Enum.TextXAlignment.Left
+	score.Text = "0"
+	score.Parent = gui
+
+	local kills = Instance.new("TextLabel")
+	kills.Name = "Kills"
+	kills.Size = UDim2.fromOffset(260, 18)
+	kills.Position = UDim2.new(0, 24, 0, 56)
+	kills.BackgroundTransparency = 1
+	kills.Font = Enum.Font.Code
+	kills.TextSize = 13
+	kills.TextColor3 = Color3.fromRGB(150, 144, 130)
+	kills.TextXAlignment = Enum.TextXAlignment.Left
+	kills.Text = "0 kills  0 headshots"
+	kills.Parent = gui
+
+	-- Headshot callout, just above the crosshair.
+	local headshot = Instance.new("TextLabel")
+	headshot.Name = "Headshot"
+	headshot.Size = UDim2.fromOffset(300, 24)
+	headshot.Position = UDim2.new(0.5, -150, 0.5, -70)
+	headshot.BackgroundTransparency = 1
+	headshot.Font = Enum.Font.GothamBold
+	headshot.TextSize = 20
+	headshot.TextColor3 = Color3.fromRGB(255, 90, 80)
+	headshot.TextStrokeTransparency = 0.4
+	headshot.Text = "HEADSHOT!"
+	headshot.TextTransparency = 1
+	headshot.Parent = gui
+
 	local ammo = Instance.new("TextLabel")
 	ammo.Name = "Ammo"
 	ammo.Size = UDim2.fromOffset(280, 24)
@@ -130,8 +173,11 @@ function Hud.new(): Hud
 	return setmetatable({
 		_ammo = ammo,
 		_hitmarker = hitmarker,
+		_score = score,
+		_kills = kills,
+		_headshot = headshot,
 		_bars = {
-			SANITY = makeBar(gui, "SANITY", 0, Color3.fromRGB(190, 175, 105)),
+			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
 			STAMINA = makeBar(gui, "STAMINA", 2, Color3.fromRGB(200, 200, 200)),
 		},
@@ -152,14 +198,34 @@ function Hud.setAmmoText(self: Hud, text: string?)
 	self._ammo.Text = text or ""
 end
 
-function Hud.update(self: Hud, sanity: number, battery: number, stamina: number)
-	setBar(self._bars.SANITY, sanity / 100)
+function Hud.setScore(self: Hud, score: number, kills: number, headshots: number)
+	self._score.Text = tostring(score)
+	self._kills.Text = `{kills} kills  {headshots} headshots`
+end
+
+--- Flashes the HEADSHOT callout. Fades itself out; safe to call repeatedly.
+function Hud.flashHeadshot(self: Hud)
+	local label = self._headshot
+	label.TextTransparency = 0
+	task.spawn(function()
+		for alpha = 0, 1, 0.06 do
+			label.TextTransparency = alpha
+			task.wait(0.02)
+		end
+		label.TextTransparency = 1
+	end)
+end
+
+function Hud.update(self: Hud, health: number, maxHealth: number, battery: number, stamina: number)
+	setBar(self._bars.HEALTH, if maxHealth > 0 then health / maxHealth else 0)
 	setBar(self._bars.BATTERY, battery / 100)
 	setBar(self._bars.STAMINA, stamina / 100)
 
-	-- Fully opaque at 0 sanity, invisible above 60.
-	local dread = 1 - math.clamp(sanity / 60, 0, 1)
-	self._vignette.BackgroundTransparency = 1 - (dread * 0.75)
+	-- The vignette tracks health: it closes in as you
+	-- get closer to dying, which is the thing worth signalling.
+	local hurt = 1 - math.clamp(if maxHealth > 0 then health / maxHealth else 0, 0, 1)
+	self._vignette.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+	self._vignette.BackgroundTransparency = 1 - (hurt * 0.6)
 end
 
 return Hud

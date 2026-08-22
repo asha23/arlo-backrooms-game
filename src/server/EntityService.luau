@@ -60,10 +60,19 @@ local function buildRig(variant: Variant): Model
 	local armSize = build.ArmSize
 	local legSize = build.LegSize
 
-	-- The root must match the torso so the physics assembly lines up.
+	--[[
+		The root is the ONLY collider. Every visual limb is CanCollide false and
+		massless.
+
+		With colliding legs the Humanoid fights its own geometry: it tries to
+		hold the root at HipHeight above the floor while the leg parts prop the
+		body up from below, and the two settle at different heights. The result
+		is a rig that hovers, jitters, or sinks. One collider and cosmetic limbs
+		is the standard shape for a custom-proportioned rig.
+	]]
 	local root = newPart("HumanoidRootPart", torsoSize, build.BodyColor, model)
 	root.Transparency = 1
-	root.CanCollide = false
+	root.CanCollide = true
 
 	local torso = newPart("Torso", torsoSize, build.BodyColor, model)
 	local head = newPart("Head", headSize, build.HeadColor, model)
@@ -72,9 +81,63 @@ local function buildRig(variant: Variant): Model
 	local leftLeg = newPart("Left Leg", legSize, build.LimbColor, model)
 	local rightLeg = newPart("Right Leg", legSize, build.LimbColor, model)
 
-	-- No face at all. A blank head is worse than an angry one.
+	for _, limb in { torso, head, leftArm, rightArm, leftLeg, rightLeg } do
+		limb.CanCollide = false
+		limb.Massless = true
+	end
+
 	head.Material = Enum.Material.SmoothPlastic
 	head.Reflectance = build.HeadReflectance
+
+	--[[
+		Eyes, and nothing else — no mouth, no nose. Two marks on an otherwise
+		blank head suggest a face without providing one, which is worse.
+
+		"Auto" chooses by the head's own brightness: a dark head gets eyes that
+		glow out of it, a pale head gets eyes that read as holes punched into
+		it. Rec. 709 luma, because a green head and a blue head of the same
+		numeric value do not look equally bright.
+	]]
+	local luma = 0.2126 * build.HeadColor.R
+		+ 0.7152 * build.HeadColor.G
+		+ 0.0722 * build.HeadColor.B
+	local glowing = if build.EyeStyle == "Glow"
+		then true
+		elseif build.EyeStyle == "Black" then false
+		else luma < 0.45
+
+	for _, side in { -1, 1 } do
+		local eye = newPart(
+			"Eye",
+			Vector3.new(headSize.X * 0.22, headSize.Y * 0.16, 0.08),
+			if glowing then build.EyeGlowColor else Color3.fromRGB(6, 6, 8),
+			model
+		)
+		eye.CanCollide = false
+		eye.Massless = true
+		eye.Material = if glowing then Enum.Material.Neon else Enum.Material.SmoothPlastic
+
+		-- Front face of the head is -Z.
+		local offset =
+			CFrame.new(side * headSize.X * 0.24, headSize.Y * 0.12, -headSize.Z / 2 - 0.04)
+		eye.CFrame = head.CFrame * offset
+
+		local weld = Instance.new("Weld")
+		weld.Part0 = head
+		weld.Part1 = eye
+		weld.C0 = offset
+		weld.C1 = CFrame.identity
+		weld.Parent = head
+
+		if glowing then
+			-- Just enough to catch on the wall beside it in a dark corridor.
+			local light = Instance.new("PointLight")
+			light.Color = build.EyeGlowColor
+			light.Brightness = 1.1
+			light.Range = 9
+			light.Parent = eye
+		end
+	end
 
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = variant.Health
@@ -155,44 +218,108 @@ local function buildRig(variant: Variant): Model
 		end
 	end
 
+	local worth = Instance.new("IntValue")
+	worth.Name = "ScoreValue"
+	worth.Value = variant.Score
+	worth.Parent = model
+
 	model.PrimaryPart = root
 	return model
 end
 
 --[[
-	A slow sway on the neck and shoulders. Costs one CFrame per joint per tick
-	and does more for the impression of something alive than a walk cycle would:
-	it never stops, even when the thing is standing still watching you.
+	Procedural walk cycle.
+
+	Roblox will only animate a rig given an Animator plus an uploaded animation
+	asset. Driving the Motor6D joints directly needs neither, and because the
+	phase advances with distance travelled rather than with time, the stride
+	stays correct whether the thing is ambling or sprinting at you.
+
+	Standing still falls back to a slow sway, so an idle entity never reads as
+	a prop.
 ]]
-local function swayRig(model: Model)
+local function animateRig(model: Model, humanoid: Humanoid)
 	local torso = model:FindFirstChild("Torso") :: BasePart?
-	if not torso then
+	local root = model.PrimaryPart
+	if not torso or not root then
 		return
 	end
-	local neck = torso:FindFirstChild("Neck") :: Motor6D?
-	local leftShoulder = torso:FindFirstChild("Left Shoulder") :: Motor6D?
-	local rightShoulder = torso:FindFirstChild("Right Shoulder") :: Motor6D?
 
-	local baseNeck = if neck then neck.C0 else nil
-	local baseLeft = if leftShoulder then leftShoulder.C0 else nil
-	local baseRight = if rightShoulder then rightShoulder.C0 else nil
+	local joints = {
+		leftHip = torso:FindFirstChild("Left Hip") :: Motor6D?,
+		rightHip = torso:FindFirstChild("Right Hip") :: Motor6D?,
+		leftShoulder = torso:FindFirstChild("Left Shoulder") :: Motor6D?,
+		rightShoulder = torso:FindFirstChild("Right Shoulder") :: Motor6D?,
+		neck = torso:FindFirstChild("Neck") :: Motor6D?,
+	}
+
+	-- Rest pose, captured before anything is animated. Written out rather than
+	-- looped so each field keeps its type.
+	local base = {
+		leftHip = if joints.leftHip then joints.leftHip.C0 else nil,
+		rightHip = if joints.rightHip then joints.rightHip.C0 else nil,
+		leftShoulder = if joints.leftShoulder then joints.leftShoulder.C0 else nil,
+		rightShoulder = if joints.rightShoulder then joints.rightShoulder.C0 else nil,
+		neck = if joints.neck then joints.neck.C0 else nil,
+	}
+
+	local swing = math.rad(SETTINGS.SwingAngle)
+	local armRatio = SETTINGS.ArmSwingRatio
+	local stride = SETTINGS.StrideLength
 
 	task.spawn(function()
-		local elapsed = rng:NextNumber(0, SETTINGS.SwayPeriod)
-		while model.Parent do
-			local delta = task.wait(0.06)
-			elapsed += delta
-			local wave = math.sin((elapsed / SETTINGS.SwayPeriod) * math.pi * 2)
-			local angle = math.rad(SETTINGS.SwayAngle) * wave
+		local phase = rng:NextNumber(0, math.pi * 2)
+		local swayClock = rng:NextNumber(0, SETTINGS.SwayPeriod)
+		local lastPosition = root.Position
 
-			if neck and baseNeck then
-				neck.C0 = baseNeck * CFrame.Angles(0, angle * 0.6, angle * 0.4)
-			end
-			if leftShoulder and baseLeft then
-				leftShoulder.C0 = baseLeft * CFrame.Angles(angle, 0, 0)
-			end
-			if rightShoulder and baseRight then
-				rightShoulder.C0 = baseRight * CFrame.Angles(-angle, 0, 0)
+		while model.Parent and humanoid.Health > 0 do
+			local delta = task.wait(0.04)
+			local position = root.Position
+			-- Horizontal distance only; falling shouldn't drive a walk cycle.
+			local travelled = (Vector3.new(position.X, 0, position.Z) - Vector3.new(
+				lastPosition.X,
+				0,
+				lastPosition.Z
+			)).Magnitude
+			lastPosition = position
+
+			if travelled > 0.02 then
+				phase += (travelled / stride) * math.pi
+				local wave = math.sin(phase)
+
+				-- Legs swing in opposition; arms counter-swing against them.
+				if joints.leftHip and base.leftHip then
+					joints.leftHip.C0 = base.leftHip * CFrame.Angles(swing * wave, 0, 0)
+				end
+				if joints.rightHip and base.rightHip then
+					joints.rightHip.C0 = base.rightHip * CFrame.Angles(-swing * wave, 0, 0)
+				end
+				if joints.leftShoulder and base.leftShoulder then
+					joints.leftShoulder.C0 = base.leftShoulder
+						* CFrame.Angles(-swing * armRatio * wave, 0, 0)
+				end
+				if joints.rightShoulder and base.rightShoulder then
+					joints.rightShoulder.C0 = base.rightShoulder
+						* CFrame.Angles(swing * armRatio * wave, 0, 0)
+				end
+				if joints.neck and base.neck then
+					-- A small bob, a quarter of the leg swing and twice as fast.
+					joints.neck.C0 = base.neck
+						* CFrame.Angles(0, 0, swing * 0.12 * math.sin(phase * 2))
+				end
+			else
+				swayClock += delta
+				local wave = math.sin((swayClock / SETTINGS.SwayPeriod) * math.pi * 2)
+				local angle = math.rad(SETTINGS.SwayAngle) * wave
+				if joints.neck and base.neck then
+					joints.neck.C0 = base.neck * CFrame.Angles(0, angle * 0.6, angle * 0.4)
+				end
+				if joints.leftShoulder and base.leftShoulder then
+					joints.leftShoulder.C0 = base.leftShoulder * CFrame.Angles(angle, 0, 0)
+				end
+				if joints.rightShoulder and base.rightShoulder then
+					joints.rightShoulder.C0 = base.rightShoulder * CFrame.Angles(-angle, 0, 0)
+				end
 			end
 		end
 	end)
@@ -320,6 +447,19 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: V
 	while model.Parent and humanoid.Health > 0 do
 		local target, distance = nearestPlayer(root.Position)
 		local now = os.clock()
+
+		--[[
+			Cull anything that has drifted out of everyone's world. Pathfinding
+			an empty corridor nobody can see is pure server cost, and the freed
+			slot gets respawned somewhere a player will actually meet it.
+		]]
+		if distance > SETTINGS.DespawnDistance then
+			brains[model] = nil
+			alive -= 1
+			model:Destroy()
+			return
+		end
+
 		local canSee = target ~= nil and distance <= SETTINGS.SightRange
 		sounds:update(now - lastTick, canSee or brain.alerted)
 		lastTick = now
@@ -335,14 +475,39 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: V
 			broadcastAlert(root.Position, targetRoot.Position, model)
 			humanoid.WalkSpeed = variant.ChaseSpeed
 
-			if distance <= SETTINGS.AttackRange then
+			--[[
+				Attack range is measured horizontally. These things stand ten
+				studs tall, so their root sits well above the player's — a
+				straight 3D distance would keep reporting them as out of reach
+				while they were standing right on top of someone.
+			]]
+			local flat = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(
+				targetRoot.Position.X,
+				0,
+				targetRoot.Position.Z
+			)).Magnitude
+
+			if flat <= SETTINGS.AttackRange then
 				local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
 				if targetHumanoid and now - lastAttack >= SETTINGS.AttackCooldown then
 					lastAttack = now
 					targetHumanoid:TakeDamage(SETTINGS.AttackDamage)
 				end
 				humanoid:MoveTo(targetRoot.Position)
-				task.wait(0.25)
+				task.wait(0.15)
+				continue
+			end
+
+			--[[
+				Close in: stop pathfinding and simply come at them. Computing a
+				route every few studs is both expensive and slow to react, and
+				at this range there is rarely a wall in the way — the hesitation
+				it caused was the main reason they never actually reached
+				anyone.
+			]]
+			if flat <= SETTINGS.LungeRange then
+				humanoid:MoveTo(targetRoot.Position)
+				task.wait(0.12)
 				continue
 			end
 
@@ -419,9 +584,10 @@ local function spawnOne(folder: Folder, position: Vector3)
 
 	local torso = model:FindFirstChild("Torso") :: BasePart
 	local sounds = EntitySounds.attach(torso, variant.Id)
-	swayRig(model)
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+	animateRig(model, humanoid)
+
 	humanoid.Died:Connect(function()
 		alive -= 1
 		sounds:playDeath()
