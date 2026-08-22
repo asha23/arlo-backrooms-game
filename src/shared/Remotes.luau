@@ -65,6 +65,7 @@ local MANIFEST: { [string]: string } = {
 	Countdown = "RemoteEvent",
 	Died = "RemoteEvent",
 	RequestRespawn = "RemoteEvent",
+	Escaped = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -133,6 +134,11 @@ end
 -- Client -> Server: the player clicked to respawn.
 function Remotes.RequestRespawn(): RemoteEvent
 	return get("RequestRespawn", "RemoteEvent")
+end
+
+-- Server -> Client: you reached the exit.
+function Remotes.Escaped(): RemoteEvent
+	return get("Escaped", "RemoteEvent")
 end
 
 return Remotes

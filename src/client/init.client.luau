@@ -24,6 +24,7 @@ local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
 local LightStreaming = require(script.LightStreaming)
+local Minimap = require(script.Minimap)
 local Recoil = require(script.Recoil)
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Remotes)
 local Sprint = require(script.Sprint)
@@ -61,6 +62,7 @@ TouchControls.start({
 })
 
 Ambience.start()
+Minimap.start()
 LightStreaming.start()
 LightFlicker.start()
 
@@ -82,8 +84,12 @@ end
 -- during a countdown that hasn't finished.
 sprint.locked = true
 
-Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots, cash)
-	hud:setScore(score, kills, headshots, cash)
+Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots, cash, escapes)
+	hud:setScore(score, kills, headshots, cash, escapes)
+end)
+
+Remotes.Escaped().OnClientEvent:Connect(function(bonusScore, bonusCash)
+	hud:showEscape(bonusScore, bonusCash)
 end)
 
 Remotes.Countdown().OnClientEvent:Connect(function(text, unlocked)

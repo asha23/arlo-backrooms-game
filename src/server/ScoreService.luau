@@ -20,6 +20,7 @@ export type Record = {
 	score: number,
 	kills: number,
 	headshots: number,
+	escapes: number,
 }
 
 local ScoreService = {}
@@ -40,7 +41,7 @@ local stats: { [Player]: { score: IntValue, kills: IntValue, cash: IntValue } } 
 local function recordFor(player: Player): Record
 	local record = records[player]
 	if not record then
-		record = { score = 0, kills = 0, headshots = 0 }
+		record = { score = 0, kills = 0, headshots = 0, escapes = 0 }
 		records[player] = record
 	end
 	return record
@@ -55,7 +56,8 @@ local function publish(player: Player)
 		stat.kills.Value = record.kills
 		stat.cash.Value = wallet
 	end
-	Remotes.ScoreChanged():FireClient(player, record.score, record.kills, record.headshots, wallet)
+	Remotes.ScoreChanged()
+		:FireClient(player, record.score, record.kills, record.headshots, wallet, record.escapes)
 end
 
 local function setUpPlayer(player: Player)
@@ -104,6 +106,15 @@ function ScoreService.registerHit(player: Player, value: number, headshot: boole
 		record.score += math.floor(award)
 	end
 
+	publish(player)
+end
+
+--- Awards the escape bonus. Counted separately from kills so the scoreboard
+--- distinguishes someone who fought their way out from someone who ran.
+function ScoreService.registerEscape(player: Player, bonus: number)
+	local record = recordFor(player)
+	record.score += bonus
+	record.escapes += 1
 	publish(player)
 end
 

@@ -410,4 +410,11 @@ function LevelGenerator.generate(): Grid
 	return grid
 end
 
+--- World position of the spawn point, for anything that needs to measure
+--- distance from where the player starts.
+function LevelGenerator.spawnPosition(grid: Grid): Vector3
+	local cell = findSpawnCell(grid)
+	return cellToWorld(cell.X, cell.Y)
+end
+
 return LevelGenerator

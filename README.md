@@ -89,6 +89,15 @@ value than a mouse.
 - **Flickering fluorescents.** Client-side, so each player sees a different room.
 - **Sprint** (hold Shift) with stamina.
 - **Flashlight** (press F) with a draining battery.
+- **A way out.** An exit sits at the open cell furthest from spawn — around 280
+  studs away in a straight line, and several times that through the maze. It is
+  the only green light in a yellow level, so it reads from the far end of a
+  corridor without needing a HUD marker. Reaching it pays 2500 score and $750,
+  shows a banner, and returns you to the entrance for another run.
+- **Radar**, top right. Entities, weapons, medkits, cash and the exit, rotated
+  so up is where you are facing. Blips come from a fixed pool that is created
+  once and reused, so the cost does not grow with how much is out there —
+  drawing the maze itself would have meant a frame per cell, 2401 of them.
 - **Scoring.** Kills and headshots, tracked server-side and exposed both to the
   HUD and as `leaderstats`, so the player list doubles as a scoreboard. A kill's
   value is read off the rig, so a new variant scores correctly without touching

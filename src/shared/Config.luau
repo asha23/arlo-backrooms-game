@@ -418,6 +418,43 @@ local Config = {
 		Color = Color3.fromRGB(120, 235, 130),
 	},
 
+	Escape = {
+		--[[
+			The way out.
+
+			Placed at the open cell furthest from spawn, so escaping means
+			crossing the level rather than stumbling out of the room you
+			started in. It is the only thing in the maze that is lit green,
+			which makes it readable from a long way down a corridor without
+			needing a marker.
+		]]
+		BonusScore = 2500,
+		BonusCash = 750,
+		TriggerRadius = 7,
+		Color = Color3.fromRGB(90, 240, 130),
+		-- How long the victory banner holds before you are put back in.
+		CelebrationSeconds = 4,
+	},
+
+	Minimap = {
+		--[[
+			A radar rather than a rendered map: blips for the things that move
+			or matter, on a plain backdrop.
+
+			Drawing the maze itself would mean a frame per cell — a 49x49 grid
+			is 2401 of them — and this project has already been bitten once by
+			doing per-instance work at scale. Blips are pooled and reused, so
+			the cost is fixed regardless of how much is on screen.
+		]]
+		Size = 190,
+		Range = 130, -- studs shown from edge to edge
+		UpdateInterval = 0.12,
+		-- Rotating with the camera means "up" is always where you are facing,
+		-- which is what makes a radar readable while moving.
+		RotateWithCamera = true,
+		MaxBlips = 60,
+	},
+
 	Combat = {
 		--[[
 			How much punishment an entity takes, expressed in HITS rather than
@@ -521,6 +558,43 @@ local Config = {
 			-- with hundreds of collectables.
 			Lifetime = 60,
 			Color = Color3.fromRGB(120, 235, 130),
+		},
+
+		Escape = {
+			--[[
+			The way out.
+
+			Placed at the open cell furthest from spawn, so escaping means
+			crossing the level rather than stumbling out of the room you
+			started in. It is the only thing in the maze that is lit green,
+			which makes it readable from a long way down a corridor without
+			needing a marker.
+		]]
+			BonusScore = 2500,
+			BonusCash = 750,
+			TriggerRadius = 7,
+			Color = Color3.fromRGB(90, 240, 130),
+			-- How long the victory banner holds before you are put back in.
+			CelebrationSeconds = 4,
+		},
+
+		Minimap = {
+			--[[
+			A radar rather than a rendered map: blips for the things that move
+			or matter, on a plain backdrop.
+
+			Drawing the maze itself would mean a frame per cell — a 49x49 grid
+			is 2401 of them — and this project has already been bitten once by
+			doing per-instance work at scale. Blips are pooled and reused, so
+			the cost is fixed regardless of how much is on screen.
+		]]
+			Size = 190,
+			Range = 130, -- studs shown from edge to edge
+			UpdateInterval = 0.12,
+			-- Rotating with the camera means "up" is always where you are facing,
+			-- which is what makes a radar readable while moving.
+			RotateWithCamera = true,
+			MaxBlips = 60,
 		},
 
 		Combat = {

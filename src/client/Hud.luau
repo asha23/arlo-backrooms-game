@@ -246,10 +246,37 @@ function Hud.setAmmoText(self: Hud, text: string?)
 	self._ammo.Text = text or ""
 end
 
-function Hud.setScore(self: Hud, score: number, kills: number, headshots: number, cash: number)
+function Hud.setScore(
+	self: Hud,
+	score: number,
+	kills: number,
+	headshots: number,
+	cash: number,
+	escapes: number?
+)
 	self._score.Text = tostring(score)
-	self._kills.Text = `{kills} kills  {headshots} headshots`
+	local suffix = if escapes and escapes > 0 then `  {escapes} escapes` else ""
+	self._kills.Text = `{kills} kills  {headshots} headshots{suffix}`
 	self._cash.Text = `${cash}`
+end
+
+--- Victory banner. Uses the countdown slot, which is already centred and above
+--- everything else, rather than adding a second full-screen element.
+function Hud.showEscape(self: Hud, bonusScore: number, bonusCash: number)
+	local label = self._countdown
+	label.TextColor3 = Color3.fromRGB(90, 240, 130)
+	label.TextSize = 64
+	label.Text = "YOU ESCAPED"
+	label.TextTransparency = 0
+
+	self:setDeathPrompt(`+{bonusScore} SCORE   +${bonusCash}`)
+
+	task.delay(3.4, function()
+		if label.Text == "YOU ESCAPED" then
+			label.Text = ""
+			self:setDeathPrompt(nil)
+		end
+	end)
 end
 
 --[[
