@@ -11,19 +11,18 @@
 	to the spawn for another run.
 ]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local LeaderboardService = require(script.Parent.LeaderboardService)
+local ProximityService = require(script.Parent.ProximityService)
 local ScoreService = require(script.Parent.ScoreService)
 
 local SETTINGS = Config.Escape
 
 local EscapeService = {}
 
-local exitPosition: Vector3? = nil
 local homePosition: Vector3? = nil
 local escaping: { [Player]: boolean } = {}
 
@@ -231,7 +230,6 @@ function EscapeService.start(positions: { Vector3 }, home: Vector3)
 		warn("[Escape] no open cell to place an exit in")
 		return
 	end
-	exitPosition = furthest
 
 	local folder = Instance.new("Folder")
 	folder.Name = "Exit"
@@ -245,28 +243,19 @@ function EscapeService.start(positions: { Vector3 }, home: Vector3)
 
 	print(`[Escape] exit placed {math.floor(best)} studs from spawn`)
 
-	task.spawn(function()
-		while true do
-			task.wait(0.3)
-			local target = exitPosition
-			if not target then
-				continue
-			end
-			for _, player in Players:GetPlayers() do
-				if escaping[player] then
-					continue
-				end
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				if not root or not humanoid or humanoid.Health <= 0 then
-					continue
-				end
-				if (root.Position - target).Magnitude <= SETTINGS.TriggerRadius then
-					onEscape(player)
-				end
-			end
+	ProximityService.register(furthest, SETTINGS.TriggerRadius, function(player)
+		if escaping[player] then
+			return false
 		end
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return false
+		end
+		onEscape(player)
+		-- Never consumed: the exit has to keep working for repeat escapes and
+		-- for everyone else.
+		return false
 	end)
 end
 

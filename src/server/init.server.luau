@@ -16,6 +16,7 @@ local MatchService = require(script.MatchService)
 local LevelGenerator = require(script.LevelGenerator)
 local LightingService = require(script.LightingService)
 local PlayerService = require(script.PlayerService)
+local ProximityService = require(script.ProximityService)
 local ScoreService = require(script.ScoreService)
 local SpawnPoints = require(script.SpawnPoints)
 local WorkspaceCleaner = require(script.WorkspaceCleaner)
@@ -50,6 +51,9 @@ local openPositions = LevelGenerator.openPositions(grid)
 local pool = SpawnPoints.new(openPositions, Random.new())
 
 PlayerService.spawnPosition = LevelGenerator.spawnPosition(grid)
+-- One loop serves every pickup in the game; see ProximityService.
+ProximityService.start()
+
 PlayerService.start()
 ScoreService.start()
 LeaderboardService.start()

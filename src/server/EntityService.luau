@@ -565,6 +565,24 @@ local function gatherTentacles(
 	return found
 end
 
+local function nearestPlayer(position: Vector3): (Player?, number)
+	local best: Player? = nil
+	local bestDistance = math.huge
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not root or not humanoid or humanoid.Health <= 0 then
+			continue
+		end
+		local distance = (root.Position - position).Magnitude
+		if distance < bestDistance then
+			best, bestDistance = player, distance
+		end
+	end
+	return best, bestDistance
+end
+
 --- The jaw welds, so the animator can hinge them. One per head.
 local function gatherJaws(model: Model): { { weld: Weld, base: CFrame } }
 	local found = {}
@@ -621,7 +639,15 @@ local function animateRig(model: Model, humanoid: Humanoid)
 		local clock = rng:NextNumber(0, 10)
 
 		while model.Parent and humanoid.Health > 0 do
-			local delta = task.wait(0.04)
+			--[[
+				Animate at full rate only when someone is close enough to see
+				it. Limbs, tentacles and jaws are several CFrame writes per
+				tick per entity, and running that at 25Hz for something across
+				the level is work nobody will ever look at.
+			]]
+			local _, distance = nearestPlayer(root.Position)
+			local step = if distance < 70 then 0.04 elseif distance < 160 then 0.12 else 0.4
+			local delta = task.wait(step)
 			clock += delta
 			local position = root.Position
 
@@ -703,24 +729,6 @@ local function animateRig(model: Model, humanoid: Humanoid)
 			end
 		end
 	end)
-end
-
-local function nearestPlayer(position: Vector3): (Player?, number)
-	local best: Player? = nil
-	local bestDistance = math.huge
-	for _, player in Players:GetPlayers() do
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if not root or not humanoid or humanoid.Health <= 0 then
-			continue
-		end
-		local distance = (root.Position - position).Magnitude
-		if distance < bestDistance then
-			best, bestDistance = player, distance
-		end
-	end
-	return best, bestDistance
 end
 
 --[[

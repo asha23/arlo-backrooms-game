@@ -74,14 +74,41 @@ local function makeBlip(parent: Instance): Blip
 	return blip
 end
 
---- Everything worth showing, as {position, kind} pairs.
-local function gather(): { { position: Vector3, kind: string } }
-	local found = {}
+--[[
+	Everything worth showing, as {position, kind} pairs.
+
+	Writes into a caller-supplied table and reuses the entry tables inside it,
+	so a loop running seven times a second allocates nothing. It previously
+	built a fresh outer table and a fresh table per blip on every tick, which
+	is a steady drip of garbage for a readout that mostly does not change.
+]]
+local scratch: { { position: Vector3, kind: string } } = {}
+local scratchUsed = 0
+
+local function add(position: Vector3, kind: string)
+	scratchUsed += 1
+	local entry = scratch[scratchUsed]
+	if entry then
+		entry.position = position
+		entry.kind = kind
+	else
+		scratch[scratchUsed] = { position = position, kind = kind }
+	end
+end
+
+local folderCache: { [string]: Instance } = {}
+
+local function gather(): number
+	scratchUsed = 0
 
 	local function scan(folderName: string, kind: string)
-		local folder = workspace:FindFirstChild(folderName)
-		if not folder then
-			return
+		local folder = folderCache[folderName]
+		if not folder or not folder.Parent then
+			folder = workspace:FindFirstChild(folderName)
+			if not folder then
+				return
+			end
+			folderCache[folderName] = folder
 		end
 		for _, item in folder:GetChildren() do
 			local part = if item:IsA("BasePart")
@@ -91,7 +118,7 @@ local function gather(): { { position: Vector3, kind: string } }
 				)
 				else nil
 			if part then
-				table.insert(found, { position = part.Position, kind = kind })
+				add(part.Position, kind)
 			end
 		end
 	end
@@ -104,7 +131,7 @@ local function gather(): { { position: Vector3, kind: string } }
 	scan("LivePickups", "life")
 	scan("Exit", "exit")
 
-	return found
+	return scratchUsed
 end
 
 function Minimap.start()
@@ -213,7 +240,9 @@ function Minimap.start()
 			local origin = root.Position
 
 			local used = 0
-			for _, item in gather() do
+			local found = gather()
+			for index = 1, found do
+				local item = scratch[index]
 				if used >= #pool then
 					break
 				end

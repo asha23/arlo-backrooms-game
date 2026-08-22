@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ProximityService = require(script.Parent.ProximityService)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local SETTINGS = Config.Flashlight
@@ -377,26 +378,22 @@ function FlashlightService.spawnPickups(positions: { Vector3 })
 		label.Text = "FLASHLIGHT"
 		label.Parent = billboard
 
+		-- Spin is cosmetic; the pickup test goes through the shared loop.
 		task.spawn(function()
 			local spin = 0
 			while display.Parent do
 				task.wait(0.12)
 				spin += 0.3
 				display:PivotTo(origin * CFrame.Angles(0, spin, 0))
-
-				for _, player in Players:GetPlayers() do
-					local character = player.Character
-					local root = character
-						and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-					if not root or (root.Position - origin.Position).Magnitude > 7 then
-						continue
-					end
-					if FlashlightService.give(player) then
-						display:Destroy()
-						return
-					end
-				end
 			end
+		end)
+
+		ProximityService.register(origin.Position, 7, function(player)
+			if not FlashlightService.give(player) then
+				return false
+			end
+			display:Destroy()
+			return true
 		end)
 	end
 	print(`[Flashlight] placed {#positions} pickups`)

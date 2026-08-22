@@ -33,6 +33,8 @@ export type Hud = typeof(setmetatable(
 		_deathPrompt: TextLabel,
 		_torchWarning: TextLabel,
 		_lives: { ImageLabel },
+		_lastAmmoText: string,
+		_lastBars: { [string]: number },
 	},
 	Hud
 ))
@@ -304,6 +306,8 @@ function Hud.new(): Hud
 		_deathPrompt = deathPrompt,
 		_torchWarning = torchWarning,
 		_lives = livesIcons,
+		_lastAmmoText = "",
+		_lastBars = {},
 		_bars = {
 			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -313,8 +317,18 @@ function Hud.new(): Hud
 	}, Hud)
 end
 
-local function setBar(bar: Bar, alpha: number)
-	bar.fill.Size = UDim2.fromScale(math.clamp(alpha, 0, 1), 1)
+--[[
+	Bars are also written every frame. Skipping sub-percent changes avoids
+	allocating a UDim2 and triggering a layout pass for a difference nobody can
+	see — health ticking down by a fraction is not worth a redraw.
+]]
+local function setBar(bar: Bar, alpha: number, previous: number?): number
+	local value = math.clamp(alpha, 0, 1)
+	if previous and math.abs(value - previous) < 0.005 then
+		return previous
+	end
+	bar.fill.Size = UDim2.fromScale(value, 1)
+	return value
 end
 
 --- The hitmarker frame, handed to the weapon controller to flash on a hit.
@@ -322,8 +336,22 @@ function Hud.hitmarker(self: Hud): Frame
 	return self._hitmarker
 end
 
+--[[
+	Only writes when the text has actually changed.
+
+	This is called every frame from the render loop, and assigning to
+	TextLabel.Text costs a property write and a layout pass whether or not the
+	value differs. The string itself is built by the caller each frame either
+	way, but this stops the UI churning sixty times a second to display the
+	same thing.
+]]
 function Hud.setAmmoText(self: Hud, text: string?)
-	self._ammo.Text = text or ""
+	local value = text or ""
+	if value == self._lastAmmoText then
+		return
+	end
+	self._lastAmmoText = value
+	self._ammo.Text = value
 end
 
 function Hud.setScore(
@@ -460,15 +488,20 @@ function Hud.flashHeadshot(self: Hud)
 end
 
 function Hud.update(self: Hud, health: number, maxHealth: number, battery: number, stamina: number)
-	setBar(self._bars.HEALTH, if maxHealth > 0 then health / maxHealth else 0)
-	setBar(self._bars.BATTERY, battery / 100)
-	setBar(self._bars.STAMINA, stamina / 100)
+	local last = self._lastBars
+	last.HEALTH =
+		setBar(self._bars.HEALTH, if maxHealth > 0 then health / maxHealth else 0, last.HEALTH)
+	last.BATTERY = setBar(self._bars.BATTERY, battery / 100, last.BATTERY)
+	last.STAMINA = setBar(self._bars.STAMINA, stamina / 100, last.STAMINA)
 
-	-- The vignette tracks health: it closes in as you
-	-- get closer to dying, which is the thing worth signalling.
+	-- The vignette tracks health: it closes in as you get closer to dying,
+	-- which is the thing worth signalling. Skipped when unchanged, for the same
+	-- reason as the bars.
 	local hurt = 1 - math.clamp(if maxHealth > 0 then health / maxHealth else 0, 0, 1)
-	self._vignette.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
-	self._vignette.BackgroundTransparency = 1 - (hurt * 0.6)
+	local target = 1 - (hurt * 0.6)
+	if math.abs(target - self._vignette.BackgroundTransparency) >= 0.004 then
+		self._vignette.BackgroundTransparency = target
+	end
 end
 
 return Hud

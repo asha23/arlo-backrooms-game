@@ -8,10 +8,10 @@
 	miss entirely when a fast-moving character tunnels past a thin part.
 ]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ProximityService = require(script.Parent.ProximityService)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 
 local SETTINGS = Config.Health
@@ -80,85 +80,73 @@ local function placeBox(position: Vector3, parent: Instance)
 	local box = buildBox(origin)
 	box.Parent = parent
 
-	local available = true
-
-	task.spawn(function()
-		while box.Parent or not available do
-			task.wait(0.3)
-			if not available then
+	local function setVisible(visible: boolean)
+		for _, part in box:GetChildren() do
+			if not part:IsA("BasePart") then
 				continue
 			end
-			for _, player in Players:GetPlayers() do
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				if not root or not humanoid or humanoid.Health <= 0 then
-					continue
-				end
-				if (root.Position - origin.Position).Magnitude > SETTINGS.PickupRadius then
-					continue
-				end
-				-- Leave it on the floor for someone who actually needs it.
-				if humanoid.Health >= humanoid.MaxHealth then
-					continue
-				end
-
-				humanoid.Health = humanoid.MaxHealth
-
-				--[[
-					Sparkle: one ping plus a short ascending run of quieter,
-					higher ones a few hundredths apart. A single ping reads as a
-					UI blip; the run reads as something good happening.
-				]]
-				local audio = Config.PickupAudio
-				SoundKit.playOnce(root, {
-					Id = audio.Health.Id,
-					Pitch = audio.Health.Pitch,
-					Volume = audio.Health.Volume,
-					Range = audio.Health.Range,
-				})
-				for _, sparkle in audio.HealthSparkles do
-					task.delay(sparkle.Delay, function()
-						if root.Parent then
-							SoundKit.playOnce(root, {
-								Id = audio.Health.Id,
-								Pitch = sparkle.Pitch,
-								Volume = sparkle.Volume,
-								Range = audio.Health.Range,
-							})
-						end
-					end)
-				end
-
-				available = false
-				for _, part in box:GetChildren() do
-					if part:IsA("BasePart") then
-						part.Transparency = 1
-						local light = part:FindFirstChildOfClass("PointLight")
-						if light then
-							light.Enabled = false
-						end
-					end
-				end
-
-				task.delay(SETTINGS.RespawnDelay, function()
-					if not box.Parent then
-						return
-					end
-					available = true
-					for _, part in box:GetChildren() do
-						if part:IsA("BasePart") then
-							part.Transparency = 0
-							local light = part:FindFirstChildOfClass("PointLight")
-							if light then
-								light.Enabled = true
-							end
-						end
-					end
-				end)
-				break
+			part.Transparency = if visible then 0 else 1
+			local light = part:FindFirstChildOfClass("PointLight")
+			if light then
+				light.Enabled = visible
 			end
 		end
+	end
+
+	--[[
+		Registered with the shared proximity loop rather than polling from its
+		own thread. See ProximityService: fourteen of these each waking three
+		times a second to walk the player list is a cost that scales with loot
+		rather than with players.
+	]]
+	local handle: ProximityService.Handle
+	handle = ProximityService.register(origin.Position, SETTINGS.PickupRadius, function(player)
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not humanoid or not root or not root:IsA("BasePart") then
+			return false
+		end
+		-- Left on the floor for someone who actually needs it.
+		if humanoid.Health >= humanoid.MaxHealth then
+			return false
+		end
+
+		humanoid.Health = humanoid.MaxHealth
+
+		--[[
+			Sparkle: one ping plus a short ascending run of quieter, higher ones
+			a few hundredths apart. A single ping reads as a UI blip; the run
+			reads as something good happening.
+		]]
+		local audio = Config.PickupAudio
+		SoundKit.playOnce(root, {
+			Id = audio.Health.Id,
+			Pitch = audio.Health.Pitch,
+			Volume = audio.Health.Volume,
+			Range = audio.Health.Range,
+		})
+		for _, sparkle in audio.HealthSparkles do
+			task.delay(sparkle.Delay, function()
+				if root.Parent then
+					SoundKit.playOnce(root, {
+						Id = audio.Health.Id,
+						Pitch = sparkle.Pitch,
+						Volume = sparkle.Volume,
+						Range = audio.Health.Range,
+					})
+				end
+			end)
+		end
+
+		setVisible(false)
+		task.delay(SETTINGS.RespawnDelay, function()
+			if box.Parent then
+				setVisible(true)
+				handle:setActive(true)
+			end
+		end)
+		return true
 	end)
 end
 

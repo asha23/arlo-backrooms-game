@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local ProximityService = require(script.Parent.ProximityService)
 local ScoreService = require(script.Parent.ScoreService)
 local WeaponFactory = require(script.Parent.WeaponFactory)
 
@@ -471,67 +472,55 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 	label.Text = weaponName
 	label.Parent = billboard
 
-	local available = true
 	display.Parent = pedestal
 
-	task.spawn(function()
-		while pedestal.Parent do
-			task.wait(0.35)
-			if not available then
-				continue
-			end
-			for _, player in Players:GetPlayers() do
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				if
-					not root
-					or (root.Position - pedestal.Position).Magnitude > SETTINGS.PickupRadius
-				then
-					continue
-				end
-
-				--[[
-					Rolling over a weapon always tops it up to full, whether or
-					not you already own it — a gun you can't shoot is the same
-					as no gun. The pickup is only consumed if something actually
-					changed, so walking over one while fully loaded and already
-					armed leaves it on the floor for someone else.
-				]]
-				local tool = giveWeapon(player, weaponId)
-				if not tool then
-					continue
-				end
-				local refilled = refillAmmo(player, weaponId)
-
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				local wasEquipped = character ~= nil and character:FindFirstChild(tool.Name) ~= nil
-				if not refilled and wasEquipped then
-					continue
-				end
-
-				-- Equip straight away: rolling over a gun should arm you, not
-				-- put a thing in a menu you then have to go and find.
-				if humanoid then
-					humanoid:EquipTool(tool)
-				end
-				if character then
-					playPickupSound(character)
-				end
-
-				available = false
-				display.Parent = nil
-				beacon.Enabled = false
-				billboard.Enabled = false
-				task.delay(SETTINGS.RespawnDelay, function()
-					if pedestal.Parent then
-						available = true
-						display.Parent = pedestal
-						beacon.Enabled = true
-					end
-				end)
-				break
-			end
+	--[[
+		Registered with the shared proximity loop. Forty-five of these each
+		waking three times a second to walk the player list was the single
+		largest source of idle server work in the game.
+	]]
+	local handle: ProximityService.Handle
+	handle = ProximityService.register(pedestal.Position, SETTINGS.PickupRadius, function(player)
+		local character = player.Character
+		if not character then
+			return false
 		end
+
+		--[[
+			Rolling over a weapon always tops it up to full, whether or not you
+			already own it — a gun you cannot shoot is the same as no gun. The
+			pickup is only consumed if something actually changed, so walking
+			over one while fully loaded and already armed leaves it for someone
+			else.
+		]]
+		local tool = giveWeapon(player, weaponId)
+		if not tool then
+			return false
+		end
+		local refilled = refillAmmo(player, weaponId)
+		local wasEquipped = character:FindFirstChild(tool.Name) ~= nil
+		if not refilled and wasEquipped then
+			return false
+		end
+
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid:EquipTool(tool)
+		end
+		playPickupSound(character)
+
+		display.Parent = nil
+		beacon.Enabled = false
+		billboard.Enabled = false
+		task.delay(SETTINGS.RespawnDelay, function()
+			if pedestal.Parent then
+				display.Parent = pedestal
+				beacon.Enabled = true
+				billboard.Enabled = true
+				handle:setActive(true)
+			end
+		end)
+		return true
 	end)
 end
 

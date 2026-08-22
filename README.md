@@ -194,6 +194,26 @@ Two things that are easy to get wrong here, both learned the hard way:
   exists, and there are lit fixtures near you — then counts you in, 3-2-1-FIGHT.
   It shows the all-time top five while you wait.
 
+## Performance notes
+
+Things that turned out to matter, in case they are tempting to undo:
+
+- **One proximity loop, not one per pickup.** Every weapon, medkit, torch, life,
+  cash drop and the exit registers with `ProximityService`, which runs a single
+  loop and buckets registrations by position so a player is tested against the
+  handful of things near them. Seventy-nine coroutines each walking the player
+  list several times a second became one — cost now scales with players rather
+  than with how much loot is on the floor.
+- **Nothing per-frame that does not need to be.** The heartbeat polls at 10Hz
+  rather than on `RenderStepped`; the ammo string is cached and rebuilt only when
+  it changes; HUD bars skip sub-percent writes; the minimap reuses its scratch
+  tables; light streaming only re-sorts after the camera moves 6 studs.
+- **Pools, not churn.** Tracers, impacts, the muzzle flash and damage numbers all
+  come from fixed pools. Creating and destroying instances per shot is what made
+  the machine gun stutter at eleven rounds a second.
+- **Entities animate by distance** — 25Hz close, 8Hz mid, 2.5Hz far. Limb,
+  tentacle and jaw transforms are several CFrame writes per tick per entity.
+
 ## Server-authoritative by design
 
 The client sends the ray it was aiming down; the server re-casts it and decides

@@ -117,6 +117,11 @@ end
 	Tying rate and volume to the nearest entity turns "something is nearby" into
 	"it is nearly on you" with no UI at all — and it goes silent the moment
 	nothing is in range, so it reads as information rather than as decoration.
+
+	Polled ten times a second rather than on RenderStepped. It walks the entity
+	list to find the closest one, and doing that sixty times a second to drive
+	something whose entire output is a beat rate is wasted work — at 10Hz it is
+	indistinguishable and costs a sixth as much.
 ]]
 local function startHeartbeat(parent: Instance)
 	if SETTINGS.HeartbeatId == "" then
@@ -132,41 +137,47 @@ local function startHeartbeat(parent: Instance)
 
 	local player = Players.LocalPlayer
 
-	RunService.Heartbeat:Connect(function()
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		local entities = workspace:FindFirstChild("Entities")
-		if not root or not root:IsA("BasePart") or not entities then
-			heart.Volume = 0
-			if heart.IsPlaying then
-				heart:Stop()
-			end
-			return
+	local function silence()
+		heart.Volume = 0
+		if heart.IsPlaying then
+			heart:Stop()
 		end
+	end
 
-		local closest = math.huge
-		for _, model in entities:GetChildren() do
-			local part = model:IsA("Model") and model.PrimaryPart
-			if part then
-				closest = math.min(closest, (part.Position - root.Position).Magnitude)
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local entities = workspace:FindFirstChild("Entities")
+			if not root or not root:IsA("BasePart") or not entities then
+				silence()
+				continue
 			end
-		end
 
-		if closest > SETTINGS.HeartbeatRange then
-			heart.Volume = 0
-			if heart.IsPlaying then
-				heart:Stop()
+			local origin = root.Position
+			local closest = math.huge
+			for _, model in entities:GetChildren() do
+				local part = model:IsA("Model") and model.PrimaryPart
+				if part then
+					closest = math.min(closest, (part.Position - origin).Magnitude)
+				end
 			end
-			return
-		end
 
-		-- 0 at the edge of the range, 1 when it is on top of you.
-		local intensity = 1 - math.clamp(closest / SETTINGS.HeartbeatRange, 0, 1)
-		heart.Volume = SETTINGS.HeartbeatVolume * intensity
-		heart.PlaybackSpeed = SETTINGS.HeartbeatPitch[1]
-			+ (SETTINGS.HeartbeatPitch[2] - SETTINGS.HeartbeatPitch[1]) * intensity
-		if not heart.IsPlaying then
-			heart:Play()
+			if closest > SETTINGS.HeartbeatRange then
+				silence()
+				continue
+			end
+
+			-- 0 at the edge of the range, 1 when it is on top of you.
+			local intensity = 1 - math.clamp(closest / SETTINGS.HeartbeatRange, 0, 1)
+			heart.Volume = SETTINGS.HeartbeatVolume * intensity
+			heart.PlaybackSpeed = SETTINGS.HeartbeatPitch[1]
+				+ (SETTINGS.HeartbeatPitch[2] - SETTINGS.HeartbeatPitch[1]) * intensity
+			if not heart.IsPlaying then
+				heart:Play()
+			end
 		end
 	end)
 end

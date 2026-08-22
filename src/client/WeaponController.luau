@@ -45,6 +45,12 @@ export type WeaponController = typeof(setmetatable(
 		_hitmarker: Frame?,
 		_dryFire: Sound,
 		_scope: Scope.Scope,
+		-- Cache for the per-frame ammo string; see ammoText.
+		_ammoCacheId: string?,
+		_ammoCacheMag: number,
+		_ammoCacheReserve: number,
+		_ammoCacheReloading: boolean,
+		_ammoCacheText: string?,
 	},
 	WeaponController
 ))
@@ -315,6 +321,11 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		_hitmarker = hitmarker,
 		_dryFire = dryFire,
 		_scope = Scope.new(),
+		_ammoCacheId = nil,
+		_ammoCacheMag = -1,
+		_ammoCacheReserve = -1,
+		_ammoCacheReloading = false,
+		_ammoCacheText = nil,
 	}, WeaponController)
 
 	--[[
@@ -581,7 +592,14 @@ function WeaponController.update(self: WeaponController)
 	end
 end
 
---- Text for the ammo readout, or nil when unarmed.
+--[[
+	Text for the ammo readout, or nil when unarmed.
+
+	Cached against the values it is built from. This runs every frame, and
+	string interpolation allocates — sixty throwaway strings a second, for a
+	line that changes only when you fire or reload, is pure garbage-collector
+	pressure.
+]]
 function WeaponController.ammoText(self: WeaponController): string?
 	local weaponId = equippedWeaponId()
 	if not weaponId then
@@ -589,13 +607,34 @@ function WeaponController.ammoText(self: WeaponController): string?
 	end
 	local stats = WeaponConfig.Weapons[weaponId]
 	local state = self.ammo[weaponId]
+
+	local magazine = if state then state.magazine else -1
+	local reserve = if state then state.reserve else -1
+	local reloading = state ~= nil and state.reloading
+	if
+		self._ammoCacheId == weaponId
+		and self._ammoCacheMag == magazine
+		and self._ammoCacheReserve == reserve
+		and self._ammoCacheReloading == reloading
+	then
+		return self._ammoCacheText
+	end
+
+	local text
 	if not state then
-		return `{stats.Name}  --`
+		text = `{stats.Name}  --`
+	elseif reloading then
+		text = `{stats.Name}  ...reloading`
+	else
+		text = `{stats.Name}  {magazine} / {reserve}`
 	end
-	if state.reloading then
-		return `{stats.Name}  ...reloading`
-	end
-	return `{stats.Name}  {state.magazine} / {state.reserve}`
+
+	self._ammoCacheId = weaponId
+	self._ammoCacheMag = magazine
+	self._ammoCacheReserve = reserve
+	self._ammoCacheReloading = reloading
+	self._ammoCacheText = text
+	return text
 end
 
 return WeaponController

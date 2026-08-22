@@ -8,10 +8,10 @@
 	and a fast player can tunnel straight past a thin part without firing it.
 ]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ProximityService = require(script.Parent.ProximityService)
 local ScoreService = require(script.Parent.ScoreService)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 
@@ -87,47 +87,45 @@ function CashService.drop(position: Vector3)
 	local note = buildNote(origin)
 	note.Parent = parent
 
-	local collected = false
-	local expiresAt = os.clock() + SETTINGS.Lifetime
+	--[[
+		Spin and expiry stay on their own light thread; the collection test goes
+		through the shared proximity loop.
+	]]
+	local handle: ProximityService.Handle
+	handle = ProximityService.register(origin.Position, SETTINGS.PickupRadius, function(player)
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root or not root:IsA("BasePart") then
+			return false
+		end
+		ScoreService.addCash(player, SETTINGS.DropValue)
+		SoundKit.playOnce(root, {
+			Id = Config.PickupAudio.Health.Id,
+			Pitch = 1.2,
+			Volume = 0.8,
+			Range = 40,
+		})
+		note:Destroy()
+		return true
+	end)
 
 	task.spawn(function()
-		-- Slow spin, so it catches the eye in a dark corridor.
 		local spin = 0
-		while note.Parent and not collected do
-			task.wait(0.1)
-			spin += 0.35
+		local expiresAt = os.clock() + SETTINGS.Lifetime
+		while note.Parent do
+			task.wait(0.12)
+			spin += 0.4
 			local primary = note.PrimaryPart
 			if primary then
 				primary.CFrame = origin * CFrame.Angles(0, spin, 0)
 			end
-
 			if os.clock() > expiresAt then
-				note:Destroy()
-				return
-			end
-
-			for _, player in Players:GetPlayers() do
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				if not root then
-					continue
-				end
-				if (root.Position - origin.Position).Magnitude > SETTINGS.PickupRadius then
-					continue
-				end
-
-				collected = true
-				ScoreService.addCash(player, SETTINGS.DropValue)
-				SoundKit.playOnce(root, {
-					Id = "",
-					Pitch = 1.2,
-					Volume = 0.8,
-					Range = 40,
-				})
+				handle:destroy()
 				note:Destroy()
 				return
 			end
 		end
+		handle:destroy()
 	end)
 end
 

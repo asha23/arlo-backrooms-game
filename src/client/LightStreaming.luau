@@ -74,12 +74,24 @@ function LightStreaming.start()
 		pass" is exactly when the level looks wrong.
 	]]
 	local candidates: { { fixture: Fixture, distance: number } } = {}
+	--[[
+		Skip the pass entirely when the camera has barely moved.
 
-	local function pass()
+		The active set is decided by distance, so it cannot change unless the
+		camera does. Standing still — reloading, aiming, reading the map — used
+		to re-sort up to 282 fixtures four times a second to arrive at exactly
+		the same answer.
+	]]
+	local lastOrigin: Vector3? = nil
+	local RESORT_DISTANCE = 6
+
+	local function pass(force: boolean?)
 		do
 			if dirty then
 				dirty = false
 				fixtures = gather()
+				-- The set changed, so the previous decision is stale.
+				lastOrigin = nil
 			end
 
 			local camera = workspace.CurrentCamera
@@ -87,6 +99,10 @@ function LightStreaming.start()
 				return
 			end
 			local origin = camera.CFrame.Position
+			if not force and lastOrigin and (origin - lastOrigin).Magnitude < RESORT_DISTANCE then
+				return
+			end
+			lastOrigin = origin
 
 			table.clear(candidates)
 			for _, fixture in fixtures do
@@ -117,7 +133,7 @@ function LightStreaming.start()
 		before it fades: revealing the level while every fixture is still in its
 		default state is what made the game appear to start in the dark.
 	]]
-	pass()
+	pass(true)
 	Players.LocalPlayer:SetAttribute("LightsReady", true)
 
 	task.spawn(function()

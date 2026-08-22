@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ProximityService = require(script.Parent.ProximityService)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 
@@ -128,6 +129,10 @@ function LivesService.spawnPickups(positions: { Vector3 })
 		label.Text = "EXTRA LIFE"
 		label.Parent = billboard
 
+		--[[
+			Bobbing is cosmetic and cheap; the pickup test itself goes through
+			the shared proximity loop rather than this thread.
+		]]
 		task.spawn(function()
 			local bob = 0
 			while heart.Parent do
@@ -136,31 +141,26 @@ function LivesService.spawnPickups(positions: { Vector3 })
 				heart.CFrame = origin
 					* CFrame.new(0, math.sin(bob) * 0.35, 0)
 					* CFrame.Angles(0, bob * 0.6, 0)
-
-				for _, player in Players:GetPlayers() do
-					local character = player.Character
-					local root = character
-						and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-					if
-						not root
-						or (root.Position - origin.Position).Magnitude > SETTINGS.PickupRadius
-					then
-						continue
-					end
-					-- Left on the floor if they're already at maximum.
-					if not LivesService.grant(player) then
-						continue
-					end
-					SoundKit.playOnce(root, {
-						Id = SETTINGS.FanfareId,
-						Pitch = 1,
-						Volume = SETTINGS.FanfareVolume,
-						Range = 60,
-					})
-					heart:Destroy()
-					return
-				end
 			end
+		end)
+
+		ProximityService.register(origin.Position, SETTINGS.PickupRadius, function(player)
+			-- Left on the floor if they are already at maximum.
+			if not LivesService.grant(player) then
+				return false
+			end
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root and root:IsA("BasePart") then
+				SoundKit.playOnce(root, {
+					Id = SETTINGS.FanfareId,
+					Pitch = 1,
+					Volume = SETTINGS.FanfareVolume,
+					Range = 60,
+				})
+			end
+			heart:Destroy()
+			return true
 		end)
 	end
 	print(`[Lives] placed {#positions} extra lives`)
