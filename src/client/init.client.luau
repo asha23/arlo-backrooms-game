@@ -11,7 +11,11 @@
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local Ambience = require(script.Ambience)
 local CameraController = require(script.CameraController)
@@ -21,7 +25,7 @@ local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
 local LightStreaming = require(script.LightStreaming)
 local Recoil = require(script.Recoil)
-local Remotes = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Remotes)
+local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Remotes)
 local Sprint = require(script.Sprint)
 local TouchControls = require(script.TouchControls)
 local WeaponController = require(script.WeaponController)
@@ -84,7 +88,37 @@ end)
 
 Remotes.Countdown().OnClientEvent:Connect(function(text, unlocked)
 	hud:setCountdown(text)
+	hud:setDeathPrompt(nil)
 	sprint.locked = not unlocked
+end)
+
+--[[
+	Death screen. Any fire button requests the respawn, which is the button the
+	player's hand is already on — asking them to find a different key at the
+	moment they died is friction for no reason.
+]]
+local awaitingRespawn = false
+
+Remotes.Died().OnClientEvent:Connect(function()
+	awaitingRespawn = true
+	sprint.locked = true
+	hud:setDeathPrompt(Config.Respawn.PromptText)
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not awaitingRespawn or processed then
+		return
+	end
+	local isFire = input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.MouseButton2
+		or input.UserInputType == Enum.UserInputType.MouseButton3
+		or input.UserInputType == Enum.UserInputType.Touch
+	if not isFire then
+		return
+	end
+	awaitingRespawn = false
+	hud:setDeathPrompt(nil)
+	Remotes.RequestRespawn():FireServer()
 end)
 
 Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, _killed)

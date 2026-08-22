@@ -27,6 +27,7 @@ export type Hud = typeof(setmetatable(
 		_cash: TextLabel,
 		_headshot: TextLabel,
 		_countdown: TextLabel,
+		_deathPrompt: TextLabel,
 	},
 	Hud
 ))
@@ -166,6 +167,21 @@ function Hud.new(): Hud
 	countdown.ZIndex = 10
 	countdown.Parent = gui
 
+	-- Death prompt, under the countdown banner.
+	local deathPrompt = Instance.new("TextLabel")
+	deathPrompt.Name = "DeathPrompt"
+	deathPrompt.Size = UDim2.new(1, 0, 0, 40)
+	deathPrompt.Position = UDim2.new(0, 0, 0.5, 20)
+	deathPrompt.BackgroundTransparency = 1
+	deathPrompt.Font = Enum.Font.GothamBold
+	deathPrompt.TextSize = 26
+	deathPrompt.TextColor3 = Color3.fromRGB(235, 230, 218)
+	deathPrompt.TextStrokeTransparency = 0.4
+	deathPrompt.Text = ""
+	deathPrompt.Visible = false
+	deathPrompt.ZIndex = 10
+	deathPrompt.Parent = gui
+
 	-- Headshot callout, just above the crosshair.
 	local headshot = Instance.new("TextLabel")
 	headshot.Name = "Headshot"
@@ -207,6 +223,7 @@ function Hud.new(): Hud
 		_cash = wallet,
 		_headshot = headshot,
 		_countdown = countdown,
+		_deathPrompt = deathPrompt,
 		_bars = {
 			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -240,6 +257,13 @@ end
 	own so the go signal is unmistakable at a glance — you should not have to
 	read the word to know the count has ended.
 ]]
+--- Shows or clears the death prompt.
+function Hud.setDeathPrompt(self: Hud, text: string?)
+	local label = self._deathPrompt
+	label.Text = text or ""
+	label.Visible = text ~= nil and text ~= ""
+end
+
 function Hud.setCountdown(self: Hud, text: string)
 	local label = self._countdown
 	label.Text = text
@@ -247,7 +271,9 @@ function Hud.setCountdown(self: Hud, text: string)
 		return
 	end
 
-	local isGo = text:match("%a") ~= nil
+	-- Only the bare go word counts as the go signal; "RESPAWN IN 3" also
+	-- contains letters but is still a counting step.
+	local isGo = text:match("%d") == nil
 	label.TextColor3 = if isGo then Color3.fromRGB(255, 80, 60) else Color3.fromRGB(232, 126, 34)
 	label.TextSize = if isGo then 72 else 88
 

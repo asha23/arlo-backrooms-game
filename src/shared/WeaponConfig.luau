@@ -22,6 +22,12 @@ export type Weapon = {
 	BurstCooldown: number, -- forced pause after a burst, in seconds
 	-- Degrees of upward camera kick per shot. Decays back automatically.
 	Recoil: number,
+	--[[
+		Optional telescopic sight. When present, holding right mouse zooms and
+		shows the scope overlay instead of firing — the aim button takes
+		priority over the fire button on a weapon that has one.
+	]]
+	Scope: { FieldOfView: number, Sensitivity: number }?,
 	-- The id itself is shared (Config.WeaponAudio.FireSoundId); only the
 	-- pitch and mix differ per weapon.
 	FireSound: { Pitch: number, Volume: number, Range: number, Reverb: number },
@@ -95,6 +101,10 @@ local Weapons: { [string]: Weapon } = {
 		BurstCount = 0,
 		BurstCooldown = 0,
 		Recoil = 1.5,
+		-- 18 degrees against a default 70 is roughly 4x magnification, and the
+		-- reduced sensitivity is what makes that magnification usable — at
+		-- normal sensitivity a scoped view swings far too fast to aim with.
+		Scope = { FieldOfView = 18, Sensitivity = 0.3 },
 		FireSound = {
 			Pitch = 0.42,
 			Volume = 1,

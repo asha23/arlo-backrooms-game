@@ -113,10 +113,24 @@ local Config = {
 
 			Keep these dark. They are lamps seen from below, not light sources.
 		]]
-		FixtureColor = Color3.fromRGB(74, 71, 60),
-		DeadFixtureColor = Color3.fromRGB(28, 27, 24),
-		FixtureDimColor = Color3.fromRGB(34, 33, 29),
-		SpawnFixtureColor = Color3.fromRGB(96, 92, 78),
+		--[[
+			These are the emissive colours of the fixture PANELS, and they are
+			NOT the same knob as how much light the fixture casts.
+
+			A Neon part's colour controls only how bright that surface looks —
+			it does not illuminate the room. I previously dimmed these along
+			with everything else while chasing over-exposure, which made the
+			ceiling fixtures duller than the ceiling around them: they read as
+			grey slabs rather than as lights. A working fluorescent should be
+			clearly the brightest thing in view while the room stays gloomy,
+			and that combination is exactly what these two separate controls
+			are for. Panel colour bright, FixtureLightRange short.
+		]]
+		FixtureColor = Color3.fromRGB(236, 231, 205),
+		FixtureDimColor = Color3.fromRGB(96, 93, 82),
+		-- Dead tubes stay grey on purpose: they are the ones that have failed.
+		DeadFixtureColor = Color3.fromRGB(62, 60, 55),
+		SpawnFixtureColor = Color3.fromRGB(245, 241, 220),
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
@@ -172,6 +186,10 @@ local Config = {
 	},
 
 	Player = {
+		-- Roblox's default is 100. Entities hit for 22 on a 0.75s cooldown and
+		-- arrive in packs, so 100 meant a bad corner was over in under three
+		-- seconds with nothing you could do about it.
+		MaxHealth = 220,
 		WalkSpeed = 26,
 		SprintSpeed = 42,
 		MaxStamina = 100,
@@ -361,6 +379,17 @@ local Config = {
 		ChaseSoundGap = { 1.6, 3.2 },
 	},
 
+	Respawn = {
+		-- Death is not instant-restart: you sit on the death screen until you
+		-- choose to go again, then get the same count-in as the match start so
+		-- you are never dropped straight back into a fight mid-thought.
+		PromptText = "CLICK TO RESPAWN",
+		CountdownPrefix = "RESPAWN IN",
+		-- Short pause before the prompt appears, so a death registers as a
+		-- death rather than as a flicker.
+		PromptDelay = 1.2,
+	},
+
 	Match = {
 		--[[
 			The start sequence.
@@ -432,6 +461,17 @@ local Config = {
 			Delay = 0.11,
 		},
 		-- Bright ascending sparkle for health.
+		Respawn = {
+			-- Death is not instant-restart: you sit on the death screen until you
+			-- choose to go again, then get the same count-in as the match start so
+			-- you are never dropped straight back into a fight mid-thought.
+			PromptText = "CLICK TO RESPAWN",
+			CountdownPrefix = "RESPAWN IN",
+			-- Short pause before the prompt appears, so a death registers as a
+			-- death rather than as a flicker.
+			PromptDelay = 1.2,
+		},
+
 		Match = {
 			--[[
 			The start sequence.

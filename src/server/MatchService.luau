@@ -27,6 +27,8 @@ local MatchService = {}
 -- Players who have finished their countdown and are actually playing.
 local playing: { [Player]: boolean } = {}
 local counting: { [Player]: boolean } = {}
+-- Players sitting on the death screen, waiting to choose to go again.
+local awaitingRespawn: { [Player]: boolean } = {}
 
 --- True once at least one player is in the fight. Entity spawning waits on it.
 function MatchService.isLive(): boolean
@@ -52,7 +54,7 @@ end
 	unlocked by the same message that shows "FIGHT!", so there is no window
 	where the text says go and the legs don't work, or vice versa.
 ]]
-local function countIn(player: Player)
+local function countIn(player: Player, prefix: string?)
 	if counting[player] or playing[player] then
 		return
 	end
@@ -62,12 +64,13 @@ local function countIn(player: Player)
 	freeze(player)
 
 	for _, step in SETTINGS.CountdownSteps do
+		local label = if prefix then `{prefix} {step}` else step
 		if not player.Parent then
 			counting[player] = nil
 			return
 		end
 		freeze(player) -- re-assert: a respawn mid-countdown resets the humanoid
-		countdown:FireClient(player, step, false)
+		countdown:FireClient(player, label, false)
 		task.wait(SETTINGS.StepSeconds)
 	end
 
@@ -110,17 +113,58 @@ local function watch(player: Player)
 		end
 	end)
 
-	-- Freeze again on every respawn until they're in the fight.
-	player.CharacterAdded:Connect(function()
+	--[[
+		Death handling.
+
+		Roblox would normally respawn the character on its own timer. That is
+		switched off (Players.CharacterAutoLoads is false in PlayerService) so
+		that dying leaves you on a death screen until you actively choose to go
+		again — and then you get the same count-in as the match start rather
+		than being dropped straight back into whatever killed you.
+	]]
+	local function watchCharacter(character: Model)
 		if not playing[player] then
 			freeze(player)
 		end
-	end)
+
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if not humanoid then
+			return
+		end
+
+		humanoid.Died:Connect(function()
+			playing[player] = nil
+			awaitingRespawn[player] = true
+			-- A beat before the prompt, so a death reads as a death.
+			task.delay(Config.Respawn.PromptDelay, function()
+				if player.Parent and awaitingRespawn[player] then
+					Remotes.Died():FireClient(player)
+				end
+			end)
+		end)
+	end
+
+	player.CharacterAdded:Connect(watchCharacter)
+	if player.Character then
+		watchCharacter(player.Character)
+	end
 end
 
 function MatchService.start()
 	Remotes.PlayerReady().OnServerEvent:Connect(function(player)
 		countIn(player)
+	end)
+
+	Remotes.RequestRespawn().OnServerEvent:Connect(function(player)
+		if not awaitingRespawn[player] then
+			return
+		end
+		awaitingRespawn[player] = nil
+
+		player:LoadCharacterAsync()
+		-- Count them back in, labelled so it reads as a respawn rather than as
+		-- the match starting over.
+		countIn(player, Config.Respawn.CountdownPrefix)
 	end)
 
 	Players.PlayerAdded:Connect(watch)
@@ -131,6 +175,7 @@ function MatchService.start()
 	Players.PlayerRemoving:Connect(function(player)
 		playing[player] = nil
 		counting[player] = nil
+		awaitingRespawn[player] = nil
 	end)
 end
 

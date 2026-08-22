@@ -24,24 +24,10 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local LEVEL = Config.Level
 
---[[
-	These are the Neon panel colours, not light brightness. See the note on
-	Config.Level.FixtureColor: a Neon part's apparent brightness IS its colour,
-	so these have to be scaled by LightScale exactly as the generator scales
-	them — otherwise the first flicker would restore a panel to full brightness
-	and quietly undo the dimming.
-]]
-local function scale(color: Color3): Color3
-	local s = LEVEL.LightScale
-	return Color3.new(
-		math.clamp(color.R * s, 0, 1),
-		math.clamp(color.G * s, 0, 1),
-		math.clamp(color.B * s, 0, 1)
-	)
-end
-
-local ON_COLOR = scale(LEVEL.FixtureColor)
-local DIM_COLOR = scale(LEVEL.FixtureDimColor)
+-- Panel emissive colours, matching what the generator sets. Not scaled by
+-- LightScale: see the note on Config.Level.FixtureColor.
+local ON_COLOR = LEVEL.FixtureColor
+local DIM_COLOR = LEVEL.FixtureDimColor
 
 -- How often a new flicker starts, and how far away a fixture may be to qualify.
 local ATTEMPT_INTERVAL = 0.8

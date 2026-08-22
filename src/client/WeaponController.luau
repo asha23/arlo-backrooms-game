@@ -13,6 +13,7 @@ local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Recoil = require(script.Parent.Recoil)
+local Scope = require(script.Parent.Scope)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
@@ -44,17 +45,26 @@ export type WeaponController = typeof(setmetatable(
 		_burstReadyAt: number,
 		_hitmarker: Frame?,
 		_dryFire: Sound,
+		_scope: Scope.Scope,
 	},
 	WeaponController
 ))
 
---- Any mouse button fires — left, right or middle. Right-click doesn't need to
---- rotate the camera because we're locked to first person.
+--[[
+	Any mouse button fires — left, right or middle. Right-click is free for this
+	because the camera is locked to first person.
+
+	The exception is a weapon with a telescopic sight: there, right-click aims
+	instead. Aiming takes priority over firing on a scoped weapon, since a
+	sniper you cannot aim is worse than one you cannot right-click to fire.
+]]
 local FIRE_BUTTONS: { [Enum.UserInputType]: boolean } = {
 	[Enum.UserInputType.MouseButton1] = true,
 	[Enum.UserInputType.MouseButton2] = true,
 	[Enum.UserInputType.MouseButton3] = true,
 }
+
+local AIM_BUTTON = Enum.UserInputType.MouseButton2
 
 local function tracer(from: Vector3, to: Vector3)
 	local distance = (to - from).Magnitude
@@ -237,6 +247,7 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		_burstReadyAt = 0,
 		_hitmarker = hitmarker,
 		_dryFire = dryFire,
+		_scope = Scope.new(),
 	}, WeaponController)
 
 	--[[
@@ -258,6 +269,10 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		the same frame produce one shot.
 	]]
 	UserInputService.InputBegan:Connect(function(input, processed)
+		if input.UserInputType == AIM_BUTTON and self:scopeStats() then
+			self._scope:set(true, self:scopeStats())
+			return
+		end
 		if FIRE_BUTTONS[input.UserInputType] then
 			self:setTrigger(true)
 		elseif not processed and input.KeyCode == Enum.KeyCode.R then
@@ -266,6 +281,10 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == AIM_BUTTON and self._scope.active then
+			self._scope:set(false)
+			return
+		end
 		if FIRE_BUTTONS[input.UserInputType] then
 			self:setTrigger(false)
 		end
@@ -371,6 +390,13 @@ function WeaponController.requestReload(_self: WeaponController)
 	Remotes.ReloadWeapon():FireServer()
 end
 
+--- Scope stats for the equipped weapon, or nil if it has no sight.
+function WeaponController.scopeStats(_self: WeaponController)
+	local weaponId = equippedWeaponId()
+	local stats = weaponId and WeaponConfig.Weapons[weaponId]
+	return if stats then stats.Scope else nil
+end
+
 --- Click on an empty magazine, rate-limited so holding the trigger clicks once.
 function WeaponController.playDryFire(self: WeaponController)
 	local now = os.clock()
@@ -445,6 +471,10 @@ end
 function WeaponController.update(self: WeaponController)
 	local weaponId = equippedWeaponId()
 	local stats = weaponId and WeaponConfig.Weapons[weaponId]
+
+	-- Drop the scope if the weapon was swapped away or the character died.
+	self._scope:enforce(stats ~= nil and stats.Scope ~= nil)
+
 	if not stats then
 		return
 	end

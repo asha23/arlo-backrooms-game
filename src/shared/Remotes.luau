@@ -63,6 +63,8 @@ local MANIFEST: { [string]: string } = {
 	ScoreChanged = "RemoteEvent",
 	PlayerReady = "RemoteEvent",
 	Countdown = "RemoteEvent",
+	Died = "RemoteEvent",
+	RequestRespawn = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -121,6 +123,16 @@ end
 -- Server -> Client: countdown text to show, and whether movement is unlocked.
 function Remotes.Countdown(): RemoteEvent
 	return get("Countdown", "RemoteEvent")
+end
+
+-- Server -> Client: you died; show the respawn prompt.
+function Remotes.Died(): RemoteEvent
+	return get("Died", "RemoteEvent")
+end
+
+-- Client -> Server: the player clicked to respawn.
+function Remotes.RequestRespawn(): RemoteEvent
+	return get("RequestRespawn", "RemoteEvent")
 end
 
 return Remotes

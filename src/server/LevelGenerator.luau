@@ -12,7 +12,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local LightingService = require(script.Parent.LightingService)
 
 local LEVEL = Config.Level
 local SIZE = LEVEL.GridSize
@@ -242,12 +241,14 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
 				-- Neon: this colour IS the apparent brightness of the panel.
-				-- Neon: this colour IS the apparent brightness of the panel, so
-				-- it has to be scaled by LightScale like everything else.
-				Color = LightingService.scaleColor(
-					if dead then LEVEL.DeadFixtureColor else LEVEL.FixtureColor,
-					LEVEL.LightScale
-				),
+				--[[
+					Neon: this colour is how bright the PANEL looks, not how
+					much light it throws. It is deliberately NOT scaled by
+					LightScale — that dial governs illumination, and applying
+					it here just turns the tubes grey while the room stays
+					exactly as lit as before.
+				]]
+				Color = if dead then LEVEL.DeadFixtureColor else LEVEL.FixtureColor,
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)
@@ -317,7 +318,7 @@ local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 				-- area was blinding.
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
-				Color = LightingService.scaleColor(LEVEL.SpawnFixtureColor, LEVEL.LightScale),
+				Color = LEVEL.SpawnFixtureColor,
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)
