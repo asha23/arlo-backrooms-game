@@ -240,7 +240,8 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 				Name = if dead then "DeadFluorescent" else "Fluorescent",
 				Size = Vector3.new(CELL * 0.5, 0.4, 1.6),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
-				Color = if dead then Color3.fromRGB(88, 84, 70) else Color3.fromRGB(255, 250, 220),
+				-- Neon: this colour IS the apparent brightness of the panel.
+				Color = if dead then LEVEL.DeadFixtureColor else LEVEL.FixtureColor,
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)
@@ -298,7 +299,7 @@ local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 				Name = "SpawnLight",
 				Size = Vector3.new(CELL * 0.8, 0.4, CELL * 0.8),
 				CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT - 0.2, 0)),
-				Color = Color3.fromRGB(255, 253, 240),
+				Color = LEVEL.SpawnFixtureColor,
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 			}, parent)

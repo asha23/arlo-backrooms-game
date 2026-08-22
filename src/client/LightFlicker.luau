@@ -24,8 +24,10 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local LEVEL = Config.Level
 
-local ON_COLOR = Color3.fromRGB(255, 250, 220)
-local DIM_COLOR = Color3.fromRGB(96, 92, 76)
+-- These are the Neon panel colours, not light brightness. See the note on
+-- Config.Level.FixtureColor: a Neon part's apparent brightness IS its colour.
+local ON_COLOR = LEVEL.FixtureColor
+local DIM_COLOR = LEVEL.FixtureDimColor
 
 -- How often a new flicker starts, and how far away a fixture may be to qualify.
 local ATTEMPT_INTERVAL = 0.8

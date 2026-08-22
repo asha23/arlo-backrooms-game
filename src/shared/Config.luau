@@ -65,6 +65,24 @@ local Config = {
 			to each other.
 		]]
 		LightScale = 1,
+
+		--[[
+			Emissive colour of the fixture panels themselves.
+
+			These are Neon parts, which are fully self-illuminated: their
+			apparent brightness comes from their COLOUR and nothing else. No
+			PointLight setting, no Ambient value and no LightScale affects them.
+			A ceiling of near-white Neon panels reads as a blindingly bright
+			room no matter how far the actual lights are turned down, which is
+			exactly what happened here — every brightness reduction was being
+			applied to something that wasn't the thing glowing.
+
+			Keep these dark. They are lamps seen from below, not light sources.
+		]]
+		FixtureColor = Color3.fromRGB(104, 100, 84),
+		DeadFixtureColor = Color3.fromRGB(34, 33, 30),
+		FixtureDimColor = Color3.fromRGB(46, 44, 38),
+		SpawnFixtureColor = Color3.fromRGB(126, 122, 104),
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
