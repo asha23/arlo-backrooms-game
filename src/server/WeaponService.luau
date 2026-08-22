@@ -183,7 +183,9 @@ local function resolveShot(
 	local worth = victim and victim:FindFirstChild("ScoreValue") :: IntValue?
 	ScoreService.registerHit(player, if worth then worth.Value else 0, isHeadshot, killed)
 
-	Remotes.HitConfirmed():FireClient(player, hitPosition, isHeadshot, killed)
+	-- The damage figure goes with it so the client can show the number without
+	-- having to recompute a rule that lives on the server.
+	Remotes.HitConfirmed():FireClient(player, hitPosition, isHeadshot, killed, damage)
 end
 
 local function onFire(player: Player, origin: unknown, direction: unknown)

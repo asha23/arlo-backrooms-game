@@ -411,6 +411,46 @@ local function buildRig(variant: Variant): Model
 		buildMaw(model, secondHead :: BasePart, build, "2")
 	end
 
+	--[[
+		Health bar, parented to the head so it tracks the thing as it moves.
+
+		Server-built so every player sees the same bar, and driven off
+		HealthChanged rather than polled — an entity that is not being shot
+		costs nothing at all.
+	]]
+	local bar = SETTINGS.HealthBar
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "HealthBar"
+	billboard.Size = UDim2.fromOffset(bar.Width, bar.Height)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, headSize.Y / 2 + bar.Offset, 0)
+	billboard.MaxDistance = bar.MaxDistance
+	billboard.LightInfluence = 0
+	billboard.AlwaysOnTop = true
+	billboard.Parent = head
+
+	local backing = Instance.new("Frame")
+	backing.Size = UDim2.fromScale(1, 1)
+	backing.BackgroundColor3 = bar.Background
+	backing.BackgroundTransparency = 0.25
+	backing.BorderSizePixel = 0
+	backing.Parent = billboard
+
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.BackgroundColor3 = bar.Full
+	fill.BorderSizePixel = 0
+	fill.Parent = backing
+
+	humanoid.HealthChanged:Connect(function(health)
+		local fraction = if humanoid.MaxHealth > 0 then health / humanoid.MaxHealth else 0
+		fraction = math.clamp(fraction, 0, 1)
+		fill.Size = UDim2.fromScale(fraction, 1)
+		-- Green through to red as it drops, so a nearly-dead entity is
+		-- obvious without reading the width.
+		fill.BackgroundColor3 = bar.Low:Lerp(bar.Full, fraction)
+	end)
+
 	local worth = Instance.new("IntValue")
 	worth.Name = "ScoreValue"
 	worth.Value = variant.Score

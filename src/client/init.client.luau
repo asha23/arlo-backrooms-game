@@ -20,6 +20,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Ambience = require(script.Ambience)
 local CameraController = require(script.CameraController)
 local CoreUi = require(script.CoreUi)
+local DamageNumbers = require(script.DamageNumbers)
 local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
@@ -37,6 +38,7 @@ local player = Players.LocalPlayer
 CoreUi.start()
 CameraController.start()
 Recoil.start()
+DamageNumbers.start()
 
 local flashlight = Flashlight.new()
 local sprint = Sprint.new()
@@ -161,9 +163,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	respawnIfDead()
 end)
 
-Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, _killed)
+Remotes.HitConfirmed().OnClientEvent:Connect(function(position, isHeadshot, killed, damage)
 	if isHeadshot then
 		hud:flashHeadshot()
+	end
+	if position and damage then
+		DamageNumbers.show(position, damage, isHeadshot or killed)
 	end
 end)
 

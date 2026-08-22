@@ -314,7 +314,11 @@ local Config = {
 				]]
 				Id = "Crawler",
 				Weight = 2,
-				Health = 90,
+				-- Health tracks size: this one is 4.4 studs against the
+				-- Wanderer's 8.6 and the Slender's 10, and is statted to match.
+				-- Body shots always take five, so what this really changes is
+				-- how quickly one kills itself throwing punches at you.
+				Health = 70,
 				WalkSpeed = 15,
 				ChaseSpeed = 26,
 				Score = 150,
@@ -370,6 +374,24 @@ local Config = {
 			the Motor6D joints needs neither, and reads correctly at any walk
 			speed because the phase advances with distance travelled.
 		]]
+		--[[
+			Health bar above the head.
+
+			MaxDistance matters as much as the size does: a bar on every entity
+			in the level rendering at any range is a lot of GUI for something
+			you can only read within a few dozen studs anyway.
+		]]
+		HealthBar = {
+			Width = 60,
+			Height = 7,
+			-- Studs above the top of the head.
+			Offset = 1.6,
+			MaxDistance = 90,
+			Background = Color3.fromRGB(18, 16, 14),
+			Full = Color3.fromRGB(110, 210, 110),
+			Low = Color3.fromRGB(225, 70, 60),
+		},
+
 		SwingAngle = 34, -- degrees of leg swing at full stride
 		ArmSwingRatio = 0.75, -- arms swing this fraction of the legs
 		StrideLength = 4.6, -- studs travelled per half-cycle
