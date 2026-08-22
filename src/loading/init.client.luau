@@ -13,6 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -162,6 +163,25 @@ if elapsed < MINIMUM_SECONDS then
 end
 
 report("")
+
+--[[
+	Tell the server we can see the level. Nothing spawns and nobody moves until
+	this arrives, so it must be sent even if some readiness check above timed
+	out — a client stuck behind its own loading screen forever is worse than one
+	that starts a moment early.
+
+	ReplicatedStorage is definitely replicated by now; this script runs from
+	ReplicatedFirst, which is why the remote is fetched here rather than at the
+	top of the file.
+]]
+local remotes = ReplicatedStorage:WaitForChild("Shared", 20)
+if remotes then
+	local module = (remotes :: Instance):FindFirstChild("Remotes")
+	if module then
+		local Remotes = require(module) :: any
+		Remotes.PlayerReady():FireServer()
+	end
+end
 
 local fade = TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 TweenService:Create(cover, fade, { BackgroundTransparency = 1 }):Play()

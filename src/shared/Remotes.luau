@@ -61,6 +61,8 @@ local MANIFEST: { [string]: string } = {
 	ShotFired = "RemoteEvent",
 	HitConfirmed = "RemoteEvent",
 	ScoreChanged = "RemoteEvent",
+	PlayerReady = "RemoteEvent",
+	Countdown = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -105,9 +107,20 @@ function Remotes.HitConfirmed(): RemoteEvent
 	return get("HitConfirmed", "RemoteEvent")
 end
 
--- Server -> Client: authoritative score, kills and headshot count.
+-- Server -> Client: authoritative score, kills, headshots and cash.
 function Remotes.ScoreChanged(): RemoteEvent
 	return get("ScoreChanged", "RemoteEvent")
+end
+
+-- Client -> Server: "my loading screen has finished, I can see the level."
+-- The match will not start until this arrives (or times out).
+function Remotes.PlayerReady(): RemoteEvent
+	return get("PlayerReady", "RemoteEvent")
+end
+
+-- Server -> Client: countdown text to show, and whether movement is unlocked.
+function Remotes.Countdown(): RemoteEvent
+	return get("Countdown", "RemoteEvent")
 end
 
 return Remotes

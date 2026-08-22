@@ -25,7 +25,17 @@ export type Record = {
 local ScoreService = {}
 
 local records: { [Player]: Record } = {}
-local stats: { [Player]: { score: IntValue, kills: IntValue } } = {}
+
+--[[
+	Cash is deliberately its own table rather than a field on Record.
+
+	It's earned differently (picked up off the floor, not awarded for the kill),
+	it's spendable where score isn't, and keeping the two apart means a future
+	shop can drain cash without ever touching the scoreboard.
+]]
+local cash: { [Player]: number } = {}
+
+local stats: { [Player]: { score: IntValue, kills: IntValue, cash: IntValue } } = {}
 
 local function recordFor(player: Player): Record
 	local record = records[player]
@@ -38,12 +48,14 @@ end
 
 local function publish(player: Player)
 	local record = recordFor(player)
+	local wallet = cash[player] or 0
 	local stat = stats[player]
 	if stat then
 		stat.score.Value = record.score
 		stat.kills.Value = record.kills
+		stat.cash.Value = wallet
 	end
-	Remotes.ScoreChanged():FireClient(player, record.score, record.kills, record.headshots)
+	Remotes.ScoreChanged():FireClient(player, record.score, record.kills, record.headshots, wallet)
 end
 
 local function setUpPlayer(player: Player)
@@ -58,8 +70,13 @@ local function setUpPlayer(player: Player)
 	kills.Name = "Kills"
 	kills.Parent = leaderstats
 
+	local wallet = Instance.new("IntValue")
+	wallet.Name = "Cash"
+	wallet.Parent = leaderstats
+
 	leaderstats.Parent = player
-	stats[player] = { score = score, kills = kills }
+	stats[player] = { score = score, kills = kills, cash = wallet }
+	cash[player] = cash[player] or 0
 	publish(player)
 end
 
@@ -90,6 +107,17 @@ function ScoreService.registerHit(player: Player, value: number, headshot: boole
 	publish(player)
 end
 
+--- Adds to a player's wallet. Cash is never deducted for dying.
+function ScoreService.addCash(player: Player, amount: number)
+	cash[player] = (cash[player] or 0) + amount
+	publish(player)
+end
+
+--- Current wallet balance, for anything that will eventually spend it.
+function ScoreService.cashFor(player: Player): number
+	return cash[player] or 0
+end
+
 function ScoreService.start()
 	Players.PlayerAdded:Connect(setUpPlayer)
 	for _, player in Players:GetPlayers() do
@@ -98,6 +126,7 @@ function ScoreService.start()
 
 	Players.PlayerRemoving:Connect(function(player)
 		records[player] = nil
+		cash[player] = nil
 		stats[player] = nil
 	end)
 end

@@ -255,6 +255,34 @@ local Config = {
 		ChaseSoundGap = { 1.6, 3.2 },
 	},
 
+	Match = {
+		--[[
+			The start sequence.
+
+			Nothing spawns and nobody can move until every client reports that
+			it has finished loading. Dropping a player into a half-streamed
+			level and letting entities hunt them immediately is the difference
+			between a game starting and a game already having gone wrong.
+		]]
+		CountdownSteps = { "3", "2", "1" },
+		StepSeconds = 0.85,
+		GoText = "FIGHT!",
+		GoSeconds = 1.1,
+		-- Give up waiting for a client that never reports ready, so one bad
+		-- connection can't hold the server open forever.
+		ReadyTimeout = 45,
+	},
+
+	Cash = {
+		-- Dropped by every entity killed.
+		DropValue = 50,
+		PickupRadius = 7,
+		-- Drops vanish eventually so a long session doesn't litter the level
+		-- with hundreds of collectables.
+		Lifetime = 60,
+		Color = Color3.fromRGB(120, 235, 130),
+	},
+
 	Score = {
 		-- Multiplier applied to a kill's value when the killing shot was a
 		-- headshot. Kill value itself is per-variant, in Entity.Variants.
@@ -298,6 +326,34 @@ local Config = {
 			Delay = 0.11,
 		},
 		-- Bright ascending sparkle for health.
+		Match = {
+			--[[
+			The start sequence.
+
+			Nothing spawns and nobody can move until every client reports that
+			it has finished loading. Dropping a player into a half-streamed
+			level and letting entities hunt them immediately is the difference
+			between a game starting and a game already having gone wrong.
+		]]
+			CountdownSteps = { "3", "2", "1" },
+			StepSeconds = 0.85,
+			GoText = "FIGHT!",
+			GoSeconds = 1.1,
+			-- Give up waiting for a client that never reports ready, so one bad
+			-- connection can't hold the server open forever.
+			ReadyTimeout = 45,
+		},
+
+		Cash = {
+			-- Dropped by every entity killed.
+			DropValue = 50,
+			PickupRadius = 7,
+			-- Drops vanish eventually so a long session doesn't litter the level
+			-- with hundreds of collectables.
+			Lifetime = 60,
+			Color = Color3.fromRGB(120, 235, 130),
+		},
+
 		Score = {
 			-- Multiplier applied to a kill's value when the killing shot was a
 			-- headshot. Kill value itself is per-variant, in Entity.Variants.

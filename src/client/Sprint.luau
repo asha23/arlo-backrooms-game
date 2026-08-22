@@ -21,6 +21,10 @@ export type Sprint = typeof(setmetatable(
 		-- Set by the on-screen sprint button on touch devices; ORed with Shift
 		-- so both input sources work on a device that has both.
 		requested: boolean,
+		-- Set while the match countdown is running. Sprint writes WalkSpeed
+		-- every frame, so a server-side freeze alone would be overwritten
+		-- immediately — the lock has to live here too.
+		locked: boolean,
 		_humanoid: Humanoid?,
 	},
 	Sprint
@@ -31,6 +35,7 @@ function Sprint.new(): Sprint
 		stamina = SETTINGS.MaxStamina,
 		sprinting = false,
 		requested = false,
+		locked = false,
 		_humanoid = nil,
 	}, Sprint)
 end
@@ -51,6 +56,13 @@ function Sprint.update(self: Sprint, deltaTime: number)
 	end
 
 	local held = isHoldingShift() or self.requested
+	if self.locked then
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+		self.sprinting = false
+		return
+	end
+
 	local wantsToSprint = held and humanoid.MoveDirection.Magnitude > 0
 	if self.sprinting then
 		-- Keep sprinting until stamina is fully spent.

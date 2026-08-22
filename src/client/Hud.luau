@@ -24,7 +24,9 @@ export type Hud = typeof(setmetatable(
 		_hitmarker: Frame,
 		_score: TextLabel,
 		_kills: TextLabel,
+		_cash: TextLabel,
 		_headshot: TextLabel,
+		_countdown: TextLabel,
 	},
 	Hud
 ))
@@ -137,6 +139,33 @@ function Hud.new(): Hud
 	kills.Text = "0 kills  0 headshots"
 	kills.Parent = gui
 
+	local wallet = Instance.new("TextLabel")
+	wallet.Name = "Cash"
+	wallet.Size = UDim2.fromOffset(260, 22)
+	wallet.Position = UDim2.new(0, 24, 0, 76)
+	wallet.BackgroundTransparency = 1
+	wallet.Font = Enum.Font.GothamBold
+	wallet.TextSize = 18
+	wallet.TextColor3 = Color3.fromRGB(120, 235, 130)
+	wallet.TextStrokeTransparency = 0.6
+	wallet.TextXAlignment = Enum.TextXAlignment.Left
+	wallet.Text = "$0"
+	wallet.Parent = gui
+
+	-- Countdown banner, dead centre and above everything else.
+	local countdown = Instance.new("TextLabel")
+	countdown.Name = "Countdown"
+	countdown.Size = UDim2.new(1, 0, 0, 110)
+	countdown.Position = UDim2.new(0, 0, 0.34, 0)
+	countdown.BackgroundTransparency = 1
+	countdown.Font = Enum.Font.GothamBold
+	countdown.TextSize = 88
+	countdown.TextColor3 = Color3.fromRGB(232, 126, 34)
+	countdown.TextStrokeTransparency = 0.35
+	countdown.Text = ""
+	countdown.ZIndex = 10
+	countdown.Parent = gui
+
 	-- Headshot callout, just above the crosshair.
 	local headshot = Instance.new("TextLabel")
 	headshot.Name = "Headshot"
@@ -175,7 +204,9 @@ function Hud.new(): Hud
 		_hitmarker = hitmarker,
 		_score = score,
 		_kills = kills,
+		_cash = wallet,
 		_headshot = headshot,
+		_countdown = countdown,
 		_bars = {
 			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -198,9 +229,38 @@ function Hud.setAmmoText(self: Hud, text: string?)
 	self._ammo.Text = text or ""
 end
 
-function Hud.setScore(self: Hud, score: number, kills: number, headshots: number)
+function Hud.setScore(self: Hud, score: number, kills: number, headshots: number, cash: number)
 	self._score.Text = tostring(score)
 	self._kills.Text = `{kills} kills  {headshots} headshots`
+	self._cash.Text = `${cash}`
+end
+
+--[[
+	Shows one step of the countdown. "FIGHT!" gets a colour and a size of its
+	own so the go signal is unmistakable at a glance — you should not have to
+	read the word to know the count has ended.
+]]
+function Hud.setCountdown(self: Hud, text: string)
+	local label = self._countdown
+	label.Text = text
+	if text == "" then
+		return
+	end
+
+	local isGo = text:match("%a") ~= nil
+	label.TextColor3 = if isGo then Color3.fromRGB(255, 80, 60) else Color3.fromRGB(232, 126, 34)
+	label.TextSize = if isGo then 72 else 88
+
+	-- Punch in: start oversized and settle, so each step reads as a beat.
+	label.TextTransparency = 0
+	task.spawn(function()
+		local target = label.TextSize
+		for step = 0, 1, 0.12 do
+			label.TextSize = math.floor(target * (1.35 - 0.35 * step))
+			task.wait(0.015)
+		end
+		label.TextSize = target
+	end)
 end
 
 --- Flashes the HEADSHOT callout. Fades itself out; safe to call repeatedly.

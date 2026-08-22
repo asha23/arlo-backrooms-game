@@ -71,8 +71,18 @@ if player.Character then
 	onCharacterAdded(player.Character)
 end
 
-Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots)
-	hud:setScore(score, kills, headshots)
+-- Movement stays locked until the countdown says otherwise. Starting locked
+-- means a client that somehow never receives the message can't run around
+-- during a countdown that hasn't finished.
+sprint.locked = true
+
+Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots, cash)
+	hud:setScore(score, kills, headshots, cash)
+end)
+
+Remotes.Countdown().OnClientEvent:Connect(function(text, unlocked)
+	hud:setCountdown(text)
+	sprint.locked = not unlocked
 end)
 
 Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, _killed)

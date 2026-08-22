@@ -13,8 +13,10 @@ local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CashService = require(script.Parent.CashService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local EntitySounds = require(script.Parent.EntitySounds)
+local MatchService = require(script.Parent.MatchService)
 
 local SETTINGS = Config.Entity
 
@@ -666,6 +668,13 @@ local function spawnOne(folder: Folder, position: Vector3)
 	humanoid.Died:Connect(function()
 		alive -= 1
 		sounds:playDeath()
+
+		-- Drop the bounty where it fell, at floor level rather than at the
+		-- root, which on a ten-stud rig is chest height on a ladder.
+		local root = model.PrimaryPart
+		if root then
+			CashService.drop(Vector3.new(root.Position.X, position.Y, root.Position.Z))
+		end
 		-- Long enough for the death cry to finish before the body vanishes.
 		task.delay(SETTINGS.RespawnDelay, function()
 			if model.Parent then
@@ -750,8 +759,12 @@ function EntityService.start(positions: { Vector3 })
 	task.spawn(function()
 		while true do
 			task.wait(SETTINGS.SpawnInterval)
-			-- Only populate the maze while somebody is in it.
-			if alive < SETTINGS.MaxAlive and #Players:GetPlayers() > 0 then
+			--[[
+				Nothing spawns until the countdown has finished for at least
+				one player. Hunting somebody who is still watching a loading
+				screen is not a fair start.
+			]]
+			if alive < SETTINGS.MaxAlive and MatchService.isLive() then
 				spawnGroup(folder)
 			end
 		end
