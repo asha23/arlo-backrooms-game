@@ -11,6 +11,7 @@
 	lighting are all genuinely present, then fades out.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,7 +30,7 @@ local TweenService = game:GetService("TweenService")
 local MINIMUM_SECONDS = 4
 -- Rendered frames to let pass after everything is ready, so the first thing
 -- revealed is a fully drawn, fully lit room rather than a half-streamed one.
-local SETTLE_FRAMES = 45
+local SETTLE_FRAMES = 60
 
 local startedAt = os.clock()
 local player = Players.LocalPlayer
@@ -137,7 +138,7 @@ waitFor("building level", 30, function()
 	return level ~= nil and level:FindFirstChild("Floor") ~= nil and #level:GetChildren() > 100
 end)
 
-waitFor("lighting corridors", 15, function()
+waitFor("placing fixtures", 15, function()
 	-- Spawn lighting is what guarantees you can see on arrival.
 	local level = workspace:FindFirstChild("Level")
 	return level ~= nil and level:FindFirstChild("SpawnLight") ~= nil
@@ -148,6 +149,46 @@ waitFor("finding a way in", 30, function()
 	return character ~= nil
 		and character:FindFirstChild("HumanoidRootPart") ~= nil
 		and character:FindFirstChildOfClass("Humanoid") ~= nil
+end)
+
+--[[
+	Wait until the corridor around the player is genuinely lit.
+
+	Every check above confirms that instances EXIST. None of them confirm that
+	anything is switched on — and until LightStreaming has run its first pass,
+	every fixture in the level is Enabled by default, which overruns the
+	renderer's light budget and makes the level render dark. Revealing the game
+	at that moment is exactly the "starts in the dark" problem.
+
+	So: wait for the streaming pass to publish its flag, and then verify
+	directly that there are lit fixtures near the player rather than trusting
+	the flag alone.
+]]
+waitFor("switching on", 20, function()
+	return player:GetAttribute("LightsReady") == true
+end)
+
+waitFor("lighting the corridor", 20, function()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+
+	local lit = 0
+	for _, fixture in CollectionService:GetTagged("Fluorescent") do
+		if not fixture:IsA("BasePart") then
+			continue
+		end
+		local light = fixture:FindFirstChildOfClass("PointLight")
+		if light and light.Enabled and (fixture.Position - root.Position).Magnitude <= 70 then
+			lit += 1
+			if lit >= 3 then
+				return true
+			end
+		end
+	end
+	return false
 end)
 
 --[[

@@ -801,10 +801,13 @@ local Config = {
 		SpawnCount = 4,
 
 		MaxBattery = 100,
-		-- Per second while switched on. At this rate a full torch lasts a
-		-- little over two minutes of continuous use.
-		DrainRate = 0.8,
-		-- Fraction of battery at which the client starts warning.
+		-- Per second while switched on: a full torch lasts exactly one minute
+		-- of continuous use. You do not spawn with one, so a minute is a
+		-- resource to spend rather than a background convenience — worth
+		-- switching off between corridors.
+		DrainRate = 100 / 60,
+		-- Fraction of battery at which the client starts warning. At a
+		-- one-minute charge this is the last fifteen seconds.
 		LowBatteryAt = 0.25,
 
 		-- The beam itself.

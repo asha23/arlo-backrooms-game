@@ -18,8 +18,8 @@
 ]]
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
@@ -66,13 +66,17 @@ function LightStreaming.start()
 		dirty = true
 	end)
 
-	task.spawn(function()
-		-- Scratch table reused between passes so a 4Hz loop doesn't allocate.
-		local candidates: { { fixture: Fixture, distance: number } } = {}
+	--[[
+		A single pass, factored out so the first one can run immediately rather
+		than a quarter of a second after the player is already standing there.
+		Before the first pass every fixture is Enabled by default, which is the
+		state that overruns the renderer's light budget — so "before the first
+		pass" is exactly when the level looks wrong.
+	]]
+	local candidates: { { fixture: Fixture, distance: number } } = {}
 
-		while true do
-			task.wait(LEVEL.LightStreamInterval)
-
+	local function pass()
+		do
 			if dirty then
 				dirty = false
 				fixtures = gather()
@@ -80,7 +84,7 @@ function LightStreaming.start()
 
 			local camera = workspace.CurrentCamera
 			if not camera then
-				continue
+				return
 			end
 			local origin = camera.CFrame.Position
 
@@ -106,11 +110,22 @@ function LightStreaming.start()
 				entry.fixture.light.Enabled = index <= budget
 			end
 		end
-	end)
+	end
 
-	-- Run one pass immediately so the first frame after the loading screen is
-	-- already lit, rather than lighting up a quarter-second later.
-	RunService.Heartbeat:Wait()
+	--[[
+		Run once up front, then publish a flag. The loading screen waits on this
+		before it fades: revealing the level while every fixture is still in its
+		default state is what made the game appear to start in the dark.
+	]]
+	pass()
+	Players.LocalPlayer:SetAttribute("LightsReady", true)
+
+	task.spawn(function()
+		while true do
+			task.wait(LEVEL.LightStreamInterval)
+			pass()
+		end
+	end)
 end
 
 return LightStreaming
