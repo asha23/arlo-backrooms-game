@@ -601,10 +601,18 @@ local Config = {
 			this is the difference between hunting for the exit and wandering
 			until you happen upon it.
 		]]
-		-- Electronic Blips (ProSoundEffects), verified against the asset API.
-		BeepId = "rbxassetid://9125531715",
+		--[[
+			"Beeps Single Short High Pitch 1" (ProSoundEffects), verified
+			against the asset API.
+
+			Deliberately a SINGLE short beep. The previous id was
+			"Electronic Blips Sharp Crystalline Beeps Gathering" — a long
+			ambient bed rather than one blip, so restarting it every interval
+			produced almost nothing audible.
+		]]
+		BeepId = "rbxassetid://9113402614",
 		BeepRange = 220,
-		BeepVolume = 0.45,
+		BeepVolume = 0.85,
 		-- Seconds between beeps at the far edge of the range, and right on it.
 		BeepInterval = { 1.6, 0.14 },
 

@@ -229,7 +229,10 @@ local function startExitRadar(parent: Instance)
 			local interval = far + (near - far) * (closeness * closeness)
 
 			beep.PlaybackSpeed = 1 + closeness * 0.6
-			beep.Volume = escape.BeepVolume * (0.5 + 0.5 * closeness)
+			beep.Volume = escape.BeepVolume * (0.55 + 0.45 * closeness)
+			-- Restart from the top: at short intervals the previous beep is
+			-- still playing, and Play() alone does not rewind it.
+			beep.TimePosition = 0
 			beep:Play()
 			task.wait(interval)
 		end
