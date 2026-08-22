@@ -15,6 +15,8 @@ export type Hud = typeof(setmetatable(
 	{} :: {
 		_bars: { [string]: Bar },
 		_vignette: Frame,
+		_ammo: TextLabel,
+		_hitmarker: Frame,
 	},
 	Hud
 ))
@@ -69,7 +71,50 @@ function Hud.new(): Hud
 	vignette.ZIndex = 0
 	vignette.Parent = gui
 
+	-- Centre crosshair: four ticks around a gap, so it stays readable against the walls.
+	for _, spec in
+		{
+			{ UDim2.fromOffset(2, 10), UDim2.new(0.5, -1, 0.5, -18) },
+			{ UDim2.fromOffset(2, 10), UDim2.new(0.5, -1, 0.5, 8) },
+			{ UDim2.fromOffset(10, 2), UDim2.new(0.5, -18, 0.5, -1) },
+			{ UDim2.fromOffset(10, 2), UDim2.new(0.5, 8, 0.5, -1) },
+		}
+	do
+		local tick = Instance.new("Frame")
+		tick.Size = spec[1]
+		tick.Position = spec[2]
+		tick.BackgroundColor3 = Color3.fromRGB(240, 240, 235)
+		tick.BackgroundTransparency = 0.25
+		tick.BorderSizePixel = 0
+		tick.Parent = gui
+	end
+
+	local hitmarker = Instance.new("Frame")
+	hitmarker.Name = "Hitmarker"
+	hitmarker.Size = UDim2.fromOffset(8, 8)
+	hitmarker.Position = UDim2.new(0.5, -4, 0.5, -4)
+	hitmarker.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	hitmarker.BorderSizePixel = 0
+	hitmarker.Visible = false
+	hitmarker.Parent = gui
+
+	local ammo = Instance.new("TextLabel")
+	ammo.Name = "Ammo"
+	ammo.Size = UDim2.fromOffset(280, 24)
+	ammo.Position = UDim2.new(1, -24, 1, -24)
+	ammo.AnchorPoint = Vector2.new(1, 1)
+	ammo.BackgroundTransparency = 1
+	ammo.Font = Enum.Font.Code
+	ammo.TextSize = 18
+	ammo.TextColor3 = Color3.fromRGB(240, 236, 224)
+	ammo.TextStrokeTransparency = 0.4
+	ammo.TextXAlignment = Enum.TextXAlignment.Right
+	ammo.Text = ""
+	ammo.Parent = gui
+
 	return setmetatable({
+		_ammo = ammo,
+		_hitmarker = hitmarker,
 		_bars = {
 			SANITY = makeBar(gui, "SANITY", 0, Color3.fromRGB(190, 175, 105)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -81,6 +126,15 @@ end
 
 local function setBar(bar: Bar, alpha: number)
 	bar.fill.Size = UDim2.fromScale(math.clamp(alpha, 0, 1), 1)
+end
+
+--- The hitmarker frame, handed to the weapon controller to flash on a hit.
+function Hud.hitmarker(self: Hud): Frame
+	return self._hitmarker
+end
+
+function Hud.setAmmoText(self: Hud, text: string?)
+	self._ammo.Text = text or ""
 end
 
 function Hud.update(self: Hud, sanity: number, battery: number, stamina: number)

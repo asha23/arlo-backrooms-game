@@ -50,4 +50,31 @@ function Remotes.LevelReady(): RemoteEvent
 	return get("LevelReady", "RemoteEvent")
 end
 
+-- Client -> Server: "I pulled the trigger, aiming down this ray." The server
+-- re-does the raycast itself and decides what was hit; the client's ray is
+-- treated as a request, never as a result.
+function Remotes.FireWeapon(): RemoteEvent
+	return get("FireWeapon", "RemoteEvent")
+end
+
+-- Client -> Server: request a reload of the currently equipped weapon.
+function Remotes.ReloadWeapon(): RemoteEvent
+	return get("ReloadWeapon", "RemoteEvent")
+end
+
+-- Server -> Client: authoritative ammo state for the equipped weapon.
+function Remotes.AmmoChanged(): RemoteEvent
+	return get("AmmoChanged", "RemoteEvent")
+end
+
+-- Server -> Client: a shot was fired somewhere; play the tracer and impact.
+function Remotes.ShotFired(): RemoteEvent
+	return get("ShotFired", "RemoteEvent")
+end
+
+-- Server -> Client: the local player damaged something (drives the hitmarker).
+function Remotes.HitConfirmed(): RemoteEvent
+	return get("HitConfirmed", "RemoteEvent")
+end
+
 return Remotes

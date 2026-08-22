@@ -12,6 +12,7 @@ local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
 local Sanity = require(script.Sanity)
 local Sprint = require(script.Sprint)
+local WeaponController = require(script.WeaponController)
 
 local player = Players.LocalPlayer
 
@@ -19,6 +20,7 @@ local flashlight = Flashlight.new()
 local sprint = Sprint.new()
 local sanity = Sanity.new()
 local hud = Hud.new()
+local weapons = WeaponController.new(hud:hitmarker())
 
 local function onCharacterAdded(character: Model)
 	flashlight:attach(character)
@@ -37,7 +39,9 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	sprint:update(deltaTime)
 	flashlight:update(deltaTime)
 	sanity:update(deltaTime, player.Character, flashlight.enabled)
+	weapons:update()
 	hud:update(sanity.value, flashlight.battery, sprint.stamina)
+	hud:setAmmoText(weapons:ammoText())
 end)
 
-print("[Client] ready — WASD to move, Shift to sprint, F for flashlight")
+print("[Client] ready — WASD move, Shift sprint, F flashlight, LMB fire, R reload")

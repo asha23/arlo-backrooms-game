@@ -37,9 +37,9 @@
         "Brightness": 0,
         "ClockTime": 0,
         "GlobalShadows": true,
-        "FogEnd": 90,
-        "FogStart": 20,
-        "FogColor": [0.35, 0.33, 0.22],
+        "FogEnd": 340,
+        "FogStart": 90,
+        "FogColor": [0.42, 0.28, 0.12],
         "EnvironmentDiffuseScale": 0,
         "EnvironmentSpecularScale": 0
       }

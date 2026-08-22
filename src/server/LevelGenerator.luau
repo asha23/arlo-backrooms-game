@@ -18,9 +18,8 @@ local SIZE = LEVEL.GridSize
 local CELL = LEVEL.CellSize
 local HEIGHT = LEVEL.WallHeight
 
-local WALLPAPER = Color3.fromRGB(213, 197, 128)
-local CARPET = Color3.fromRGB(190, 175, 105)
-local CEILING = Color3.fromRGB(226, 216, 172)
+-- Surface look is configured in Config.Level so it can be retuned without
+-- touching generation logic.
 
 export type Grid = { { boolean } }
 
@@ -158,8 +157,8 @@ local function buildWalls(grid: Grid, parent: Instance)
 					Name = "Wall",
 					Size = Vector3.new(runLength * CELL, HEIGHT, CELL),
 					CFrame = CFrame.new(origin + Vector3.new(0, HEIGHT / 2, 0)),
-					Color = WALLPAPER,
-					Material = Enum.Material.Fabric,
+					Color = LEVEL.WallColor,
+					Material = LEVEL.WallMaterial,
 				}, parent)
 				runStart = nil
 			end
@@ -174,16 +173,16 @@ local function buildShell(parent: Instance)
 		Name = "Floor",
 		Size = Vector3.new(span, 2, span),
 		CFrame = CFrame.new(0, -1, 0),
-		Color = CARPET,
-		Material = Enum.Material.Fabric,
+		Color = LEVEL.FloorColor,
+		Material = LEVEL.FloorMaterial,
 	}, parent)
 
 	newPart({
 		Name = "Ceiling",
 		Size = Vector3.new(span, 2, span),
 		CFrame = CFrame.new(0, HEIGHT + 1, 0),
-		Color = CEILING,
-		Material = Enum.Material.Concrete,
+		Color = LEVEL.CeilingColor,
+		Material = LEVEL.CeilingMaterial,
 	}, parent)
 end
 
@@ -237,6 +236,20 @@ end
 
 --- Generates the level and parents it under Workspace. Returns the grid so
 --- other systems (entity spawning, exits) can reason about the layout.
+--- World-space centres of every open floor cell. Weapon pickups and entity
+--- spawns both draw from this, so neither ends up inside a wall.
+function LevelGenerator.openPositions(grid: Grid): { Vector3 }
+	local positions = {}
+	for x = 1, SIZE do
+		for z = 1, SIZE do
+			if grid[x][z] then
+				table.insert(positions, cellToWorld(x, z))
+			end
+		end
+	end
+	return positions
+end
+
 function LevelGenerator.generate(): Grid
 	local seed = if LEVEL.Seed ~= 0 then LEVEL.Seed else os.time()
 	local rng = Random.new(seed)

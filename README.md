@@ -47,6 +47,17 @@ selene src/       # lint
 `src/shared/Config.luau` holds every tuning value — level size, walk speeds,
 sanity drain rates. Start there when you want to change how the game feels.
 
+## Controls
+
+| Input     | Action              |
+| --------- | ------------------- |
+| WASD      | Move                |
+| Shift     | Sprint (uses stamina) |
+| F         | Toggle flashlight   |
+| LMB       | Fire                |
+| R         | Reload              |
+| 1/2/3     | Equip from backpack |
+
 ## What's implemented
 
 - **Procedural Level 0.** A randomised depth-first maze with extra loops and
@@ -57,12 +68,25 @@ sanity drain rates. Start there when you want to change how the game feels.
 - **Flashlight** (press F) with a draining battery.
 - **Sanity.** Drains in the dark, regenerates in light. Zero is fatal. The client
   simulates it and the server owns the consequence.
-- **HUD** with three bars and a vignette that closes in as sanity drops.
+- **Weapons.** Pistol, Machine Gun and Sniper Rifle, scattered as pickups
+  through the maze and rebuilt from primitives (no binary model assets). Stats
+  live in `src/shared/WeaponConfig.luau`. Everyone spawns with a pistol.
+- **Hostiles.** Faceless wanderers that patrol the maze, chase on sight via
+  `PathfindingService`, search your last known position when they lose you, and
+  take damage — including headshots.
+- **HUD** with three bars, a crosshair, hitmarker, ammo readout, and a vignette
+  that closes in as sanity drops.
+
+## Shooting is server-authoritative
+
+The client sends the ray it was aiming down; the server re-casts that ray
+itself and decides what was hit. Fire rate, spread, ammo and damage are all
+enforced server-side. A client that lies about its aim can still only hit
+things genuinely in front of it, and can never out-fire its own weapon.
 
 ## Next up
 
-- An entity that hunts by sound
 - Exits / level transitions (Level 0 -> Level 1)
-- Ambient audio: the hum, footsteps on carpet
+- Ambient audio: the hum, gunfire, footsteps on carpet
+- Entity variants — one that hunts by sound, one that only moves unobserved
 - Saved progress via DataStores
-- Multiplayer proximity voice
