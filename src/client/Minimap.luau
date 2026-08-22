@@ -17,7 +17,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
+local UserInputService = game:GetService("UserInputService")
+
 local SETTINGS = Config.Minimap
+
+-- Smaller on phones, where 190px is a large fraction of the screen.
+local TOUCH = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 
 local player = Players.LocalPlayer
 
@@ -97,7 +102,7 @@ function Minimap.start()
 	gui.DisplayOrder = 3
 	gui.Parent = playerGui
 
-	local size = SETTINGS.Size
+	local size = if TOUCH then math.floor(SETTINGS.Size * 0.72) else SETTINGS.Size
 	local frame = Instance.new("Frame")
 	frame.Name = "Radar"
 	frame.Size = UDim2.fromOffset(size, size)

@@ -22,6 +22,9 @@ type Handlers = {
 	onReload: () -> (),
 	onSprintChanged: (boolean) -> (),
 	onFlashlight: () -> (),
+	-- Aim is a momentary hold, matching right-mouse on desktop.
+	onAimDown: () -> (),
+	onAimUp: () -> (),
 }
 
 local ACTIVE = Color3.fromRGB(232, 126, 34)
@@ -187,12 +190,27 @@ function TouchControls.start(handlers: Handlers): boolean
 		handlers.onFireUp
 	)
 
+	--[[
+		Aim, for the sniper's scope. Without this the telescopic sight is simply
+		unreachable on a touch device — there is no right mouse button to hold.
+		It sits next to Fire so both are under the same thumb.
+	]]
+	makeButton(
+		safe,
+		"Aim",
+		"AIM",
+		UDim2.fromOffset(84, 84),
+		UDim2.new(1, -122, 1, 0),
+		handlers.onAimDown,
+		handlers.onAimUp
+	)
+
 	makeButton(
 		safe,
 		"Reload",
 		"RELOAD",
-		UDim2.fromOffset(84, 60),
-		UDim2.new(1, -122, 1, 0),
+		UDim2.fromOffset(84, 56),
+		UDim2.new(1, -122, 1, -96),
 		handlers.onReload,
 		nil
 	)
@@ -201,7 +219,7 @@ function TouchControls.start(handlers: Handlers): boolean
 		safe,
 		"Sprint",
 		"SPRINT",
-		UDim2.fromOffset(84, 60),
+		UDim2.fromOffset(84, 56),
 		UDim2.new(1, 0, 1, -122),
 		handlers.onSprintChanged
 	)
@@ -210,8 +228,8 @@ function TouchControls.start(handlers: Handlers): boolean
 		safe,
 		"Flashlight",
 		"LIGHT",
-		UDim2.fromOffset(84, 60),
-		UDim2.new(1, -122, 1, -122),
+		UDim2.fromOffset(84, 56),
+		UDim2.new(1, 0, 1, -186),
 		handlers.onFlashlight,
 		nil
 	)

@@ -38,7 +38,8 @@ local function makeBar(parent: Instance, name: string, order: number, color: Col
 	holder.Name = name
 	holder.Size = UDim2.fromOffset(180, 14)
 	if TOUCH_LAYOUT then
-		holder.Position = UDim2.new(0, 24, 0, 70 + (order * 22))
+		-- Below the score block, which occupies roughly y 24-100.
+		holder.Position = UDim2.new(0, 24, 0, 112 + (order * 22))
 		holder.AnchorPoint = Vector2.new(0, 0)
 	else
 		holder.Position = UDim2.new(0, 24, 1, -24 - (order * 24))
@@ -217,8 +218,15 @@ function Hud.new(): Hud
 	ammo.Name = "Ammo"
 	ammo.Size = UDim2.fromOffset(280, 24)
 	if TOUCH_LAYOUT then
-		ammo.Position = UDim2.new(1, -24, 0, 70)
-		ammo.AnchorPoint = Vector2.new(1, 0)
+		--[[
+			Top centre on touch. The bottom-right is the fire button, the
+			bottom-left is Roblox's thumbstick, the top-left is the score block
+			and the top-right is now the radar — centre is the only clear space
+			left, and it was previously overlapping the radar.
+		]]
+		ammo.Position = UDim2.new(0.5, 0, 0, 26)
+		ammo.AnchorPoint = Vector2.new(0.5, 0)
+		ammo.TextXAlignment = Enum.TextXAlignment.Center
 	else
 		ammo.Position = UDim2.new(1, -24, 1, -24)
 		ammo.AnchorPoint = Vector2.new(1, 1)

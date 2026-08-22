@@ -66,8 +66,11 @@ You spawn with the pistol already equipped. The Roblox chat window is hidden by
 default — it steals keyboard focus, which matters when movement is on WASD.
 
 **Touch** — Roblox supplies the movement thumbstick, the jump button and
-drag-to-look; we add FIRE (hold to keep firing), RELOAD, SPRINT (a toggle) and
-LIGHT. The HUD moves to the top of the screen so it clears the thumbstick and
+drag-to-look; we add FIRE (hold to keep firing), AIM (hold, for the sniper
+scope), RELOAD, SPRINT (a toggle) and LIGHT. FIRE also respawns you from the
+death screen: touch buttons set `gameProcessedEvent`, so a tap on FIRE never
+reaches the global input handler, and without that a mobile player would have
+had to find a bare patch of screen to tap. The HUD moves to the top of the screen so it clears the thumbstick and
 the fire button. All four drive the same methods the keyboard bindings do, so
 touch is never a second implementation of the game's rules.
 
@@ -122,9 +125,14 @@ value than a mouse.
   never share a tile.
 - **Hostiles**, in two variants defined in `Config.Entity.Variants`:
   - *Wanderer* — nine studs of nothing much, pale blank head, dark body.
-  - *Slender* — rarer, eleven studs, black suit, bright featureless head, arms
+  - *Slender* — rarer, ten studs, black suit, bright featureless head, arms
     past the knees, and four tendrils off the back. Twice the health, slower to
     start, faster once it has you.
+  - *Crawler* — four studs, half the height of a Wanderer, with **two heads**
+    and **tentacles** where its arms should be. The tentacles are a welded chain
+    whose segments each lag the one above, so movement travels down them rather
+    than swinging rigidly. Fastest and least durable of the three. Both heads
+    count for headshots.
 
   Both patrol via `PathfindingService`, chase on sight, search your last known
   position when they lose you, sway constantly so they never read as props, and

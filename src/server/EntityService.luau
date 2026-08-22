@@ -99,6 +99,14 @@ local function buildRig(variant: Variant): Model
 	root.CollisionGroup = COLLISION_GROUP
 
 	local torso = newPart("Torso", torsoSize, build.BodyColor, model)
+
+	--[[
+		The Humanoid requires exactly one part named "Head". A second head is
+		therefore a sibling named "Head2", welded to the first — it is scenery
+		as far as Roblox is concerned, but it carries the IsHead attribute so
+		shooting either one counts.
+	]]
+	local headCount = (variant :: any).Heads or 1
 	local head = newPart("Head", headSize, build.HeadColor, model)
 	local leftArm = newPart("Left Arm", armSize, build.LimbColor, model)
 	local rightArm = newPart("Right Arm", armSize, build.LimbColor, model)
@@ -121,6 +129,17 @@ local function buildRig(variant: Variant): Model
 		as a body shot.
 	]]
 	head:SetAttribute("IsHead", true)
+
+	local secondHead: BasePart? = nil
+	if headCount >= 2 then
+		secondHead = newPart("Head2", headSize, build.HeadColor, model)
+		local other = secondHead :: BasePart
+		other.Material = Enum.Material.SmoothPlastic
+		other.Reflectance = build.HeadReflectance
+		other.CanCollide = false
+		other.Massless = true
+		other:SetAttribute("IsHead", true)
+	end
 
 	--[[
 		Eyes, and nothing else — no mouth, no nose. Two marks on an otherwise
@@ -206,12 +225,60 @@ local function buildRig(variant: Variant): Model
 	-- Head sits on top of the torso.
 	joint("Neck", torso, head, CFrame.new(0, torsoSize.Y / 2, 0), CFrame.new(0, -headSize.Y / 2, 0))
 
-	-- Arms hang from the shoulders, straight down.
 	local shoulderY = torsoSize.Y / 2 - armSize.X / 2
 	local shoulderX = torsoSize.X / 2 + armSize.X / 2
-	local armDrop = CFrame.new(0, armSize.Y / 2 - armSize.X / 2, 0)
-	joint("Left Shoulder", torso, leftArm, CFrame.new(-shoulderX, shoulderY, 0), armDrop)
-	joint("Right Shoulder", torso, rightArm, CFrame.new(shoulderX, shoulderY, 0), armDrop)
+	local segments = (variant :: any).TentacleSegments or 0
+
+	if segments > 0 then
+		--[[
+			Tentacles instead of arms: a chain of segments, each welded to the
+			one above it. Welds rather than Motor6Ds because the Humanoid must
+			not try to animate these as limbs — and a Weld's C0 is still
+			animatable, which is what lets them wobble.
+
+			The real arm parts are destroyed rather than hidden, so nothing is
+			left for a raycast to hit where an arm visually isn't.
+		]]
+		leftArm:Destroy()
+		rightArm:Destroy()
+
+		local segSize = (variant :: any).TentacleSize :: Vector3
+		for _, side in { -1, 1 } do
+			local previous: BasePart = torso
+			local anchorOffset = CFrame.new(side * shoulderX, shoulderY, 0)
+			for index = 1, segments do
+				local seg = newPart(
+					`Tentacle{if side < 0 then "L" else "R"}{index}`,
+					segSize,
+					build.LimbColor,
+					model
+				)
+				seg.CanCollide = false
+				seg.Massless = true
+
+				-- First segment hangs off the shoulder; the rest off the one above.
+				local offset = if index == 1
+					then anchorOffset * CFrame.new(0, -segSize.Y / 2, 0)
+					else CFrame.new(0, -segSize.Y, 0)
+				seg.CFrame = previous.CFrame * offset
+
+				local weld = Instance.new("Weld")
+				weld.Name = `TentacleWeld{if side < 0 then "L" else "R"}{index}`
+				weld.Part0 = previous
+				weld.Part1 = seg
+				weld.C0 = offset
+				weld.C1 = CFrame.identity
+				weld.Parent = previous
+
+				previous = seg
+			end
+		end
+	else
+		-- Arms hang from the shoulders, straight down.
+		local armDrop = CFrame.new(0, armSize.Y / 2 - armSize.X / 2, 0)
+		joint("Left Shoulder", torso, leftArm, CFrame.new(-shoulderX, shoulderY, 0), armDrop)
+		joint("Right Shoulder", torso, rightArm, CFrame.new(shoulderX, shoulderY, 0), armDrop)
+	end
 
 	-- Legs hang from the hips.
 	local hipX = legSize.X * 0.75
@@ -296,11 +363,21 @@ local function groundRig(model: Model, humanoid: Humanoid)
 		end
 
 		-- Lowest point of anything visible, so the feet are what land.
+		--[[
+			Tentacles and tendrils hang loose and can swing below the feet.
+			Measuring them would lift the whole rig off the floor to keep a
+			dangling tip above ground, so only the parts it actually stands on
+			count.
+		]]
 		local lowest = math.huge
 		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") and part.Transparency < 1 then
-				lowest = math.min(lowest, part.Position.Y - part.Size.Y / 2)
+			if not part:IsA("BasePart") or part.Transparency >= 1 then
+				continue
 			end
+			if part.Name:match("^Tentacle") or part.Name:match("^Tendril") then
+				continue
+			end
+			lowest = math.min(lowest, part.Position.Y - part.Size.Y / 2)
 		end
 		if lowest == math.huge then
 			return
@@ -325,6 +402,33 @@ end
 	Standing still falls back to a slow sway, so an idle entity never reads as
 	a prop.
 ]]
+--[[
+	Collects the tentacle welds in order, per side, so they can be driven as a
+	chain: each segment lags the one above it, which is what makes the whole
+	thing whip rather than swing rigidly.
+]]
+local function gatherTentacles(
+	model: Model
+): { { weld: Weld, base: CFrame, index: number, side: number } }
+	local found = {}
+	for _, descendant in model:GetDescendants() do
+		if not descendant:IsA("Weld") then
+			continue
+		end
+		local side, index = descendant.Name:match("^TentacleWeld([LR])(%d+)$")
+		if not side then
+			continue
+		end
+		table.insert(found, {
+			weld = descendant,
+			base = descendant.C0,
+			index = tonumber(index) :: number,
+			side = if side == "L" then -1 else 1,
+		})
+	end
+	return found
+end
+
 local function animateRig(model: Model, humanoid: Humanoid)
 	local torso = model:FindFirstChild("Torso") :: BasePart?
 	local root = model.PrimaryPart
@@ -354,14 +458,36 @@ local function animateRig(model: Model, humanoid: Humanoid)
 	local armRatio = SETTINGS.ArmSwingRatio
 	local stride = SETTINGS.StrideLength
 
+	local tentacles = gatherTentacles(model)
+	local waveAngle = math.rad(24)
+	local waveSpeed = 3.4
+
 	task.spawn(function()
 		local phase = rng:NextNumber(0, math.pi * 2)
 		local swayClock = rng:NextNumber(0, SETTINGS.SwayPeriod)
 		local lastPosition = root.Position
 
+		local clock = rng:NextNumber(0, 10)
+
 		while model.Parent and humanoid.Health > 0 do
 			local delta = task.wait(0.04)
+			clock += delta
 			local position = root.Position
+
+			--[[
+				Tentacle wobble. Each segment is driven a step further along
+				the same wave than the one above it, so motion travels down the
+				chain instead of every segment moving together.
+			]]
+			for _, t in tentacles do
+				local wave = clock * waveSpeed - t.index * 0.85 + (if t.side < 0 then 0 else 1.7)
+				t.weld.C0 = t.base
+					* CFrame.Angles(
+						waveAngle * math.sin(wave) * 0.6,
+						0,
+						waveAngle * math.sin(wave * 0.7 + 1.1) * t.side
+					)
+			end
 			-- Horizontal distance only; falling shouldn't drive a walk cycle.
 			local travelled = (Vector3.new(position.X, 0, position.Z) - Vector3.new(
 				lastPosition.X,

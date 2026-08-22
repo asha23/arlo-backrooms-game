@@ -43,8 +43,30 @@ local sprint = Sprint.new()
 local hud = Hud.new()
 local weapons = WeaponController.new(hud:hitmarker())
 
+local awaitingRespawn = false
+
+--[[
+	Returns true if this input was consumed by respawning.
+
+	Touch buttons set gameProcessedEvent, so the global input handler below
+	never sees a tap on the FIRE button — without this, a mobile player on the
+	death screen would have to find a bare patch of screen to tap.
+]]
+local function respawnIfDead(): boolean
+	if not awaitingRespawn then
+		return false
+	end
+	awaitingRespawn = false
+	hud:setDeathPrompt(nil)
+	Remotes.RequestRespawn():FireServer()
+	return true
+end
+
 TouchControls.start({
 	onFireDown = function()
+		if respawnIfDead() then
+			return
+		end
 		weapons:setTrigger(true)
 	end,
 	onFireUp = function()
@@ -58,6 +80,12 @@ TouchControls.start({
 	end,
 	onFlashlight = function()
 		flashlight:toggle()
+	end,
+	onAimDown = function()
+		weapons:setAim(true)
+	end,
+	onAimUp = function()
+		weapons:setAim(false)
 	end,
 })
 
@@ -102,8 +130,6 @@ end)
 	player's hand is already on — asking them to find a different key at the
 	moment they died is friction for no reason.
 ]]
-local awaitingRespawn = false
-
 Remotes.Died().OnClientEvent:Connect(function()
 	awaitingRespawn = true
 	sprint.locked = true
@@ -121,9 +147,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if not isFire then
 		return
 	end
-	awaitingRespawn = false
-	hud:setDeathPrompt(nil)
-	Remotes.RequestRespawn():FireServer()
+	respawnIfDead()
 end)
 
 Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, _killed)

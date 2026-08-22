@@ -390,6 +390,19 @@ function WeaponController.requestReload(_self: WeaponController)
 	Remotes.ReloadWeapon():FireServer()
 end
 
+--[[
+	Public aim control, so touch buttons drive the same path as right-mouse.
+	A no-op on a weapon without a sight, which keeps the caller simple.
+]]
+function WeaponController.setAim(self: WeaponController, active: boolean)
+	local stats = self:scopeStats()
+	if active and stats then
+		self._scope:set(true, stats)
+	elseif not active then
+		self._scope:set(false)
+	end
+end
+
 --- Scope stats for the equipped weapon, or nil if it has no sight.
 function WeaponController.scopeStats(_self: WeaponController)
 	local weaponId = equippedWeaponId()

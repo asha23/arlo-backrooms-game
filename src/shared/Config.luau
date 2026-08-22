@@ -287,6 +287,44 @@ local Config = {
 				TendrilSize = Vector3.new(0.22, 6.4, 0.22),
 				TendrilColor = Color3.fromRGB(6, 6, 8),
 			},
+			{
+				--[[
+					Half the height of the others, with two heads and tentacles
+					where the arms should be.
+
+					Short and quick reads completely differently from tall and
+					slow at the end of a corridor, which is the point of adding
+					it — a third silhouette rather than a third stat block. It
+					is the fastest of the three and the least durable.
+				]]
+				Id = "Crawler",
+				Weight = 2,
+				Health = 90,
+				WalkSpeed = 19,
+				ChaseSpeed = 34,
+				Score = 150,
+				Tendrils = 0,
+				-- Two heads. Both count for headshots.
+				Heads = 2,
+				-- Segments per tentacle. Non-zero replaces the arms entirely.
+				TentacleSegments = 4,
+				TentacleSize = Vector3.new(0.26, 0.85, 0.26),
+				-- Degrees each successive segment swings, and how fast.
+				TentacleWave = 22,
+				TentacleSpeed = 3.4,
+				Build = {
+					TorsoSize = Vector3.new(1.55, 1.5, 0.7),
+					HeadSize = Vector3.new(0.78, 0.86, 0.78),
+					ArmSize = Vector3.new(0.34, 1.6, 0.34),
+					LegSize = Vector3.new(0.44, 2.0, 0.44),
+					HeadColor = Color3.fromRGB(214, 208, 190),
+					BodyColor = Color3.fromRGB(26, 24, 26),
+					LimbColor = Color3.fromRGB(32, 30, 32),
+					HeadReflectance = 0.06,
+					EyeStyle = "Auto",
+					EyeGlowColor = Color3.fromRGB(120, 255, 170),
+				},
+			},
 		},
 
 		--[[
