@@ -16,6 +16,21 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+--[[
+	Constants are inlined rather than read from Config: this runs in
+	ReplicatedFirst before ReplicatedStorage is guaranteed to have replicated,
+	and a bootstrap screen that can't start because it's waiting on a config
+	module is worse than one with a couple of hardcoded numbers.
+]]
+-- Hold the screen at least this long even if everything is instantly ready.
+-- Studio Play Solo satisfies every readiness check immediately, so without a
+-- floor the screen flashes past and you arrive before the level has drawn.
+local MINIMUM_SECONDS = 4
+-- Rendered frames to let pass after everything is ready, so the first thing
+-- revealed is a fully drawn, fully lit room rather than a half-streamed one.
+local SETTLE_FRAMES = 45
+
+local startedAt = os.clock()
 local player = Players.LocalPlayer
 
 -- Replace Roblox's own loading screen rather than sitting behind it.
@@ -57,9 +72,27 @@ status.TextColor3 = Color3.fromRGB(150, 144, 130)
 status.Text = "connecting..."
 status.Parent = cover
 
+local currentLabel = ""
+
 local function report(text: string)
+	currentLabel = text
 	status.Text = text
 end
+
+-- Pulse the label so a long wait doesn't look like a hang.
+task.spawn(function()
+	while gui.Parent do
+		for alpha = 0, 1, 0.05 do
+			if currentLabel == "" then
+				status.TextTransparency = 0
+				break
+			end
+			status.TextTransparency = 0.25 + 0.35 * math.abs(math.sin(alpha * math.pi))
+			RunService.Heartbeat:Wait()
+		end
+		RunService.Heartbeat:Wait()
+	end
+end)
 
 --- Waits until `predicate` is true or the budget runs out. Returns whether it
 --- succeeded, so a stall can be reported rather than hanging the screen forever.
@@ -100,9 +133,22 @@ waitFor("entering...", 30, function()
 		and character:FindFirstChildOfClass("Humanoid") ~= nil
 end)
 
--- A beat on a lit frame before the fade, so the reveal isn't mid-stream.
+--[[
+	Everything reports ready — but "ready" means the instances exist, not that
+	they have been drawn. Let real frames go by, then hold until the minimum
+	duration is up, so the fade always reveals a finished scene.
+]]
+report("rendering...")
+for _ = 1, SETTLE_FRAMES do
+	RunService.RenderStepped:Wait()
+end
+
+local elapsed = os.clock() - startedAt
+if elapsed < MINIMUM_SECONDS then
+	task.wait(MINIMUM_SECONDS - elapsed)
+end
+
 report("")
-task.wait(0.6)
 
 local fade = TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 TweenService:Create(cover, fade, { BackgroundTransparency = 1 }):Play()

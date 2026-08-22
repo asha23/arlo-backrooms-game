@@ -4,12 +4,25 @@
 	these — the client reads them only to predict recoil and drive the HUD.
 ]]
 
+--[[
+	How the trigger behaves:
+	  Semi  — one shot per press, however long you hold it.
+	  Burst — a fixed run of shots per press, then a forced pause.
+	  Auto  — fires continuously while held.
+]]
+export type FireMode = "Semi" | "Burst" | "Auto"
+
 export type Weapon = {
 	Name: string,
 	Damage: number,
 	HeadshotMultiplier: number,
 	FireRate: number, -- rounds per second
-	Automatic: boolean, -- true = hold to keep firing
+	Mode: FireMode,
+	BurstCount: number, -- rounds per burst; ignored unless Mode is "Burst"
+	BurstCooldown: number, -- forced pause after a burst, in seconds
+	-- Degrees of upward camera kick per shot. Decays back automatically.
+	Recoil: number,
+	FireSound: { Id: string, Pitch: number, Volume: number, Range: number, Reverb: number },
 	MagazineSize: number,
 	ReserveAmmo: number,
 	ReloadTime: number,
@@ -26,7 +39,17 @@ local Weapons: { [string]: Weapon } = {
 		Damage = 24,
 		HeadshotMultiplier = 2,
 		FireRate = 5,
-		Automatic = false,
+		Mode = "Semi",
+		BurstCount = 0,
+		BurstCooldown = 0,
+		Recoil = 1.3,
+		FireSound = {
+			Id = "rbxasset://sounds/snap.mp3",
+			Pitch = 0.85,
+			Volume = 0.75,
+			Range = 220,
+			Reverb = 1.8,
+		},
 		MagazineSize = 20,
 		ReserveAmmo = 120,
 		ReloadTime = 1.3,
@@ -42,7 +65,17 @@ local Weapons: { [string]: Weapon } = {
 		Damage = 14,
 		HeadshotMultiplier = 1.5,
 		FireRate = 11,
-		Automatic = true,
+		Mode = "Burst",
+		BurstCount = 10,
+		BurstCooldown = 0.4,
+		Recoil = 0.55,
+		FireSound = {
+			Id = "rbxasset://sounds/snap.mp3",
+			Pitch = 1.15,
+			Volume = 0.55,
+			Range = 260,
+			Reverb = 1.4,
+		},
 		MagazineSize = 80,
 		ReserveAmmo = 320,
 		ReloadTime = 2.4,
@@ -58,7 +91,17 @@ local Weapons: { [string]: Weapon } = {
 		Damage = 95,
 		HeadshotMultiplier = 3,
 		FireRate = 0.8,
-		Automatic = false,
+		Mode = "Semi",
+		BurstCount = 0,
+		BurstCooldown = 0,
+		Recoil = 3.2,
+		FireSound = {
+			Id = "rbxasset://sounds/snap.mp3",
+			Pitch = 0.42,
+			Volume = 1,
+			Range = 500,
+			Reverb = 4.5,
+		},
 		MagazineSize = 10,
 		ReserveAmmo = 40,
 		ReloadTime = 3.2,

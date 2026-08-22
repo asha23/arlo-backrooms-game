@@ -262,6 +262,38 @@ local Config = {
 		PickupRadius = 7,
 	},
 
+	PickupAudio = {
+		-- A magazine seating home when you collect a weapon.
+		Weapon = {
+			Id = "rbxasset://sounds/switch3.wav",
+			Pitch = 0.75,
+			Volume = 1,
+			Range = 45,
+		},
+		-- Second click a beat later, so it reads as a magazine rather than a
+		-- light switch.
+		WeaponSecondClick = {
+			Id = "rbxasset://sounds/switch3.wav",
+			Pitch = 1.1,
+			Volume = 0.8,
+			Range = 45,
+			Delay = 0.11,
+		},
+		-- Bright ascending sparkle for health.
+		Health = {
+			Id = "rbxasset://sounds/electronicpingshort.wav",
+			Pitch = 1.5,
+			Volume = 0.9,
+			Range = 45,
+		},
+		HealthSparkles = {
+			-- Extra pings layered above, each delayed slightly, to sparkle.
+			{ Pitch = 2.1, Volume = 0.6, Delay = 0.07 },
+			{ Pitch = 2.8, Volume = 0.45, Delay = 0.14 },
+			{ Pitch = 3.4, Volume = 0.3, Delay = 0.2 },
+		},
+	},
+
 	WeaponAudio = {
 		-- Dry fire: a bare mechanical click so an empty magazine is instantly
 		-- distinguishable from the game simply not registering the input.

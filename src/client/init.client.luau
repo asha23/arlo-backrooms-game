@@ -19,6 +19,7 @@ local CoreUi = require(script.CoreUi)
 local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
+local Recoil = require(script.Recoil)
 local Sanity = require(script.Sanity)
 local Sprint = require(script.Sprint)
 local TouchControls = require(script.TouchControls)
@@ -29,6 +30,7 @@ local player = Players.LocalPlayer
 -- Non-yielding setup first.
 CoreUi.start()
 CameraController.start()
+Recoil.start()
 
 local flashlight = Flashlight.new()
 local sprint = Sprint.new()

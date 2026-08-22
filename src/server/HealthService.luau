@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 
 local SETTINGS = Config.Health
 
@@ -103,6 +104,31 @@ local function placeBox(position: Vector3, parent: Instance)
 				end
 
 				humanoid.Health = humanoid.MaxHealth
+
+				--[[
+					Sparkle: one ping plus a short ascending run of quieter,
+					higher ones a few hundredths apart. A single ping reads as a
+					UI blip; the run reads as something good happening.
+				]]
+				local audio = Config.PickupAudio
+				SoundKit.playOnce(root, {
+					Id = audio.Health.Id,
+					Pitch = audio.Health.Pitch,
+					Volume = audio.Health.Volume,
+					Range = audio.Health.Range,
+				})
+				for _, sparkle in audio.HealthSparkles do
+					task.delay(sparkle.Delay, function()
+						if root.Parent then
+							SoundKit.playOnce(root, {
+								Id = audio.Health.Id,
+								Pitch = sparkle.Pitch,
+								Volume = sparkle.Volume,
+								Range = audio.Health.Range,
+							})
+						end
+					end)
+				end
 
 				available = false
 				for _, part in box:GetChildren() do

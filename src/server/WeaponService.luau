@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 local WeaponFactory = require(script.Parent.WeaponFactory)
 
@@ -271,7 +272,6 @@ local function giveWeapon(player: Player, weaponId: string): (Tool?, boolean)
 	return tool, true
 end
 
---- Drops a pickup at a world position that respawns after being taken.
 --[[
 	Builds the thing that sits on the floor waiting to be collected.
 
@@ -314,6 +314,53 @@ local function buildDisplay(template: Tool, name: string): Model?
 	end
 	model.PrimaryPart = handle
 	return model
+end
+
+--[[
+	Tops a weapon back up to a full magazine and full reserve.
+
+	Returns whether anything actually changed, so a pickup isn't consumed by
+	somebody walking over it already fully loaded.
+]]
+local function refillAmmo(player: Player, weaponId: string): boolean
+	local stats = WeaponConfig.Weapons[weaponId]
+	if not stats then
+		return false
+	end
+	local state = ammoFor(player, weaponId)
+	if state.magazine >= stats.MagazineSize and state.reserve >= stats.ReserveAmmo then
+		return false
+	end
+	state.magazine = stats.MagazineSize
+	state.reserve = stats.ReserveAmmo
+	state.reloading = false
+	pushAmmo(player, weaponId)
+	return true
+end
+
+--- The magazine-seating click when a weapon is collected.
+local function playPickupSound(character: Model)
+	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+	local audio = Config.PickupAudio
+	SoundKit.playOnce(root, {
+		Id = audio.Weapon.Id,
+		Pitch = audio.Weapon.Pitch,
+		Volume = audio.Weapon.Volume,
+		Range = audio.Weapon.Range,
+	})
+	task.delay(audio.WeaponSecondClick.Delay, function()
+		if root.Parent then
+			SoundKit.playOnce(root, {
+				Id = audio.WeaponSecondClick.Id,
+				Pitch = audio.WeaponSecondClick.Pitch,
+				Volume = audio.WeaponSecondClick.Volume,
+				Range = audio.WeaponSecondClick.Range,
+			})
+		end
+	end)
 end
 
 --- Drops a pickup at a world position that respawns after being taken.
@@ -367,18 +414,32 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 					continue
 				end
 
-				-- Only consume the pickup if it actually handed over a weapon;
-				-- walking over a gun you already own leaves it on the floor.
-				local tool, wasNew = giveWeapon(player, weaponId)
-				if not wasNew or not tool then
+				--[[
+					Rolling over a weapon always tops it up to full, whether or
+					not you already own it — a gun you can't shoot is the same
+					as no gun. The pickup is only consumed if something actually
+					changed, so walking over one while fully loaded and already
+					armed leaves it on the floor for someone else.
+				]]
+				local tool = giveWeapon(player, weaponId)
+				if not tool then
+					continue
+				end
+				local refilled = refillAmmo(player, weaponId)
+
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local wasEquipped = character ~= nil and character:FindFirstChild(tool.Name) ~= nil
+				if not refilled and wasEquipped then
 					continue
 				end
 
 				-- Equip straight away: rolling over a gun should arm you, not
 				-- put a thing in a menu you then have to go and find.
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 				if humanoid then
 					humanoid:EquipTool(tool)
+				end
+				if character then
+					playPickupSound(character)
 				end
 
 				available = false

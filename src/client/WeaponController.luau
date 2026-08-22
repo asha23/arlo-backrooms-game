@@ -12,7 +12,9 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Recoil = require(script.Parent.Recoil)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local SoundKit = require(ReplicatedStorage.Shared.SoundKit)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 
 local player = Players.LocalPlayer
@@ -37,6 +39,9 @@ export type WeaponController = typeof(setmetatable(
 		_triggerHeld: boolean,
 		_lastFire: number,
 		_lastDryFire: number,
+		-- Rounds left in the current burst, and when the forced pause ends.
+		_burstRemaining: number,
+		_burstReadyAt: number,
 		_hitmarker: Frame?,
 		_dryFire: Sound,
 	},
@@ -84,6 +89,52 @@ local function impact(position: Vector3)
 	Debris:AddItem(spark, 0.12)
 end
 
+--- The weapon id a given player currently has equipped, if any.
+local function weaponIdOf(subject: Player): string?
+	local character = subject.Character
+	if not character then
+		return nil
+	end
+	local tool = character:FindFirstChildOfClass("Tool")
+	local idTag = tool and tool:FindFirstChild("WeaponId") :: StringValue?
+	return if idTag then idTag.Value else nil
+end
+
+--- World position of the equipped weapon's muzzle attachment.
+local function muzzlePosition(subject: Player): Vector3?
+	local character = subject.Character
+	local tool = character and character:FindFirstChildOfClass("Tool")
+	local handle = tool and tool:FindFirstChild("Handle") :: BasePart?
+	if not handle then
+		return nil
+	end
+	local muzzle = handle:FindFirstChild("Muzzle") :: Attachment?
+	return if muzzle then muzzle.WorldPosition else handle.Position
+end
+
+--- A brief bright flare at the muzzle.
+local function muzzleFlash(position: Vector3)
+	local flash = Instance.new("Part")
+	flash.Anchored = true
+	flash.CanCollide = false
+	flash.CanQuery = false
+	flash.CanTouch = false
+	flash.Material = Enum.Material.Neon
+	flash.Color = Color3.fromRGB(255, 231, 168)
+	flash.Shape = Enum.PartType.Ball
+	flash.Size = Vector3.one * 0.9
+	flash.CFrame = CFrame.new(position)
+	flash.Parent = workspace
+
+	local light = Instance.new("PointLight")
+	light.Brightness = 6
+	light.Range = 22
+	light.Color = Color3.fromRGB(255, 226, 160)
+	light.Parent = flash
+
+	Debris:AddItem(flash, 0.06)
+end
+
 --- The tool the player is holding, if it's one of our weapons.
 local function equippedWeaponId(): string?
 	local character = player.Character
@@ -109,6 +160,8 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		_triggerHeld = false,
 		_lastFire = 0,
 		_lastDryFire = 0,
+		_burstRemaining = 0,
+		_burstReadyAt = 0,
 		_hitmarker = hitmarker,
 		_dryFire = dryFire,
 	}, WeaponController)
@@ -184,9 +237,41 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		}
 	end)
 
-	Remotes.ShotFired().OnClientEvent:Connect(function(_shooter, from, to)
+	Remotes.ShotFired().OnClientEvent:Connect(function(shooter, from, to)
 		tracer(from, to)
 		impact(to)
+
+		--[[
+			Sound and flash come from the shooter's muzzle, not from `from` —
+			`from` is the camera position, which for the local player is inside
+			their own head. Falling back to `from` covers a shooter whose tool
+			hasn't replicated yet.
+		]]
+		local muzzle = muzzlePosition(shooter) or from
+		local weaponId = weaponIdOf(shooter)
+		local stats = weaponId and WeaponConfig.Weapons[weaponId]
+		if stats then
+			local emitter = Instance.new("Part")
+			emitter.Anchored = true
+			emitter.CanCollide = false
+			emitter.CanQuery = false
+			emitter.CanTouch = false
+			emitter.Transparency = 1
+			emitter.Size = Vector3.one
+			emitter.CFrame = CFrame.new(muzzle)
+			emitter.Parent = workspace
+			SoundKit.playOnce(emitter, {
+				Id = stats.FireSound.Id,
+				Pitch = stats.FireSound.Pitch,
+				Volume = stats.FireSound.Volume,
+				Range = stats.FireSound.Range,
+				Reverb = stats.FireSound.Reverb,
+				PitchJitter = 0.07,
+			})
+			Debris:AddItem(emitter, 8)
+		end
+
+		muzzleFlash(muzzle)
 	end)
 
 	Remotes.HitConfirmed().OnClientEvent:Connect(function(_position, isHeadshot, killed)
@@ -204,9 +289,27 @@ end
 ]]
 function WeaponController.setTrigger(self: WeaponController, held: boolean)
 	self._triggerHeld = held
-	if held then
-		self:tryFire()
+	if not held then
+		return
 	end
+
+	local weaponId = equippedWeaponId()
+	local stats = weaponId and WeaponConfig.Weapons[weaponId]
+	if not stats then
+		return
+	end
+
+	if stats.Mode == "Burst" then
+		-- Start a burst, unless we're still in the forced pause after the last.
+		if self._burstRemaining <= 0 and os.clock() >= self._burstReadyAt then
+			self._burstRemaining = stats.BurstCount
+		end
+		return
+	end
+
+	-- Semi and Auto both fire immediately on the press; Auto then continues in
+	-- update() while the trigger is held, Semi does not.
+	self:tryFire()
 end
 
 function WeaponController.requestReload(_self: WeaponController)
@@ -237,19 +340,20 @@ function WeaponController.flashHitmarker(self: WeaponController, strong: boolean
 	end)
 end
 
-function WeaponController.tryFire(self: WeaponController)
+--- Returns true if a shot was actually requested.
+function WeaponController.tryFire(self: WeaponController): boolean
 	local weaponId = equippedWeaponId()
 	if not weaponId then
-		return
+		return false
 	end
 	local stats = WeaponConfig.Weapons[weaponId]
 	if not stats then
-		return
+		return false
 	end
 
 	local now = os.clock()
 	if now - self._lastFire < 1 / stats.FireRate then
-		return
+		return false
 	end
 
 	--[[
@@ -260,11 +364,13 @@ function WeaponController.tryFire(self: WeaponController)
 	]]
 	local state = self.ammo[weaponId]
 	if state and state.reloading then
-		return
+		return false
 	end
 	if state and state.magazine <= 0 then
 		self:playDryFire()
-		return
+		-- An empty gun ends the burst; it shouldn't resume when reloaded.
+		self._burstRemaining = 0
+		return false
 	end
 	self._lastFire = now
 
@@ -272,16 +378,36 @@ function WeaponController.tryFire(self: WeaponController)
 	local origin = camera.CFrame.Position
 	local direction = camera.CFrame.LookVector.Unit
 	Remotes.FireWeapon():FireServer(origin, direction)
+	Recoil.kick(stats.Recoil)
+	return true
 end
 
---- Drives automatic fire; called every frame from the main loop.
+--- Drives automatic and burst fire; called every frame from the main loop.
 function WeaponController.update(self: WeaponController)
-	if not self._triggerHeld then
-		return
-	end
 	local weaponId = equippedWeaponId()
 	local stats = weaponId and WeaponConfig.Weapons[weaponId]
-	if stats and stats.Automatic then
+	if not stats then
+		return
+	end
+
+	if stats.Mode == "Burst" then
+		-- A burst runs to completion on its own, whether or not the trigger is
+		-- still held — that's what makes it read as a burst rather than as a
+		-- very short spell of automatic fire.
+		if self._burstRemaining > 0 then
+			if self:tryFire() then
+				self._burstRemaining -= 1
+				if self._burstRemaining <= 0 then
+					self._burstReadyAt = os.clock() + stats.BurstCooldown
+				end
+			end
+		elseif self._triggerHeld and os.clock() >= self._burstReadyAt then
+			self._burstRemaining = stats.BurstCount
+		end
+		return
+	end
+
+	if stats.Mode == "Auto" and self._triggerHeld then
 		self:tryFire()
 	end
 end

@@ -103,6 +103,25 @@ value than a mouse.
 - **HUD** with three bars, a crosshair, hitmarker, ammo readout, and a vignette
   that closes in as sanity drops.
 
+## Weapons
+
+| | Mode | Rate | Magazine | Reserve | Recoil |
+| --- | --- | --- | --- | --- | --- |
+| Pistol | Semi — one shot per click | 5/s | 20 | 120 | 1.3° |
+| Machine Gun | Burst of 10, then a forced pause | 11/s | 80 | 320 | 0.55° |
+| Sniper Rifle | Semi | 0.8/s | 10 | 40 | 3.2° |
+
+A burst runs to completion whether or not you keep holding the trigger — that
+is what makes it read as a burst rather than a short spell of automatic fire.
+
+Rolling over a weapon equips it and refills it to a full magazine and full
+reserve, whether or not you already own it. The pickup is only consumed if
+something actually changed, so walking over one fully loaded and already armed
+leaves it for someone else.
+
+Recoil is applied at `RenderPriority.Camera + 1`, after Roblox's camera scripts
+have positioned the camera — anything earlier is simply overwritten.
+
 ## Audio
 
 There are no uploaded audio assets. Everything uses `rbxasset://` paths, which
