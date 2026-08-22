@@ -44,8 +44,11 @@ local function makeBar(parent: Instance, name: string, order: number, color: Col
 	holder.Name = name
 	holder.Size = UDim2.fromOffset(180, 14)
 	if TOUCH_LAYOUT then
-		-- Below the score block, which occupies roughly y 24-100.
-		holder.Position = UDim2.new(0, 24, 0, 112 + (order * 22))
+		-- Below the score block AND below the lives row, which sits at
+		-- Config.Hud.TouchLivesTop on touch.
+		local livesBottom = Config.Hud.TouchLivesTop
+			+ math.floor(Config.Hud.LivesIconSize * Config.Hud.TouchLivesScale)
+		holder.Position = UDim2.new(0, 24, 0, livesBottom + 16 + (order * 22))
 		holder.AnchorPoint = Vector2.new(0, 0)
 	else
 		holder.Position = UDim2.new(0, 24, 1, -24 - (order * 24))
@@ -247,16 +250,27 @@ function Hud.new(): Hud
 		0.85,
 		1.6
 	)
-	local iconSize = math.floor(hudCfg.LivesIconSize * hudScale)
-	local iconPitch = math.floor(hudCfg.LivesPitch * hudScale)
+	local livesScale = if TOUCH_LAYOUT then hudScale * hudCfg.TouchLivesScale else hudScale
+	local iconSize = math.floor(hudCfg.LivesIconSize * livesScale)
+	local iconPitch = math.floor(hudCfg.LivesPitch * livesScale)
 	local iconBottom = math.floor(hudCfg.LivesBottomOffset * hudScale)
 
 	for index = 1, maxLives do
 		local icon = Instance.new("ImageLabel")
 		icon.Name = `Life{index}`
 		icon.Size = UDim2.fromOffset(iconSize, iconSize)
-		icon.AnchorPoint = Vector2.new(1, 1)
-		icon.Position = UDim2.new(1, -24 - (maxLives - index) * iconPitch, 1, -iconBottom)
+		if TOUCH_LAYOUT then
+			--[[
+				Top left, above the status bars. The bottom-right corner is
+				entirely given over to the controls on touch, and sharing it
+				with the lives row is what put them on top of each other.
+			]]
+			icon.AnchorPoint = Vector2.new(0, 0)
+			icon.Position = UDim2.new(0, 24 + (index - 1) * iconPitch, 0, hudCfg.TouchLivesTop)
+		else
+			icon.AnchorPoint = Vector2.new(1, 1)
+			icon.Position = UDim2.new(1, -24 - (maxLives - index) * iconPitch, 1, -iconBottom)
+		end
 		icon.BackgroundColor3 = Color3.fromRGB(60, 56, 50)
 		icon.BackgroundTransparency = 0.25
 		icon.BorderSizePixel = 0

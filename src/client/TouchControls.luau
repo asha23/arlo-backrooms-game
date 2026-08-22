@@ -26,10 +26,7 @@
 ]]
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-
-local Config = require(ReplicatedStorage.Shared.Config)
 
 local TouchControls = {}
 
@@ -41,6 +38,7 @@ type Handlers = {
 	onFlashlight: () -> (),
 	onAimDown: () -> (),
 	onAimUp: () -> (),
+	onJump: () -> (),
 }
 
 local ACTIVE = Color3.fromRGB(232, 126, 34)
@@ -210,23 +208,27 @@ local function makeToggle(
 end
 
 --[[
-	Roblox's own jump button, moved out of the way.
+	Roblox's own jump button is hidden, and we draw our own.
 
-	It is created by the PlayerModule at the bottom right — the same corner as
-	FIRE and AIM, so by default it sits underneath them. It is not ours to
-	rebuild, but it is ours to reposition: we find the instance and re-anchor
-	it to the left of our cluster.
-
-	The PlayerModule builds it asynchronously and rebuilds it on respawn, so
-	this retries for a while and is re-applied on every layout pass rather than
-	being set once.
+	Moving theirs meant reaching into PlayerGui.TouchGui.TouchControlFrame by
+	name and re-anchoring an instance the PlayerModule owns. If any of those
+	names is wrong, or it rebuilds the button on respawn, the lookup silently
+	returns nothing and the button stays exactly where it was — sitting under
+	FIRE. Hiding it and drawing our own is deterministic: our button is in our
+	layout, so it cannot overlap anything we placed.
 ]]
-local function findJumpButton(): GuiObject?
+local function hideRobloxJump()
 	local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
 	local touchGui = playerGui and playerGui:FindFirstChild("TouchGui")
 	local frame = touchGui and touchGui:FindFirstChild("TouchControlFrame")
-	local jump = frame and frame:FindFirstChild("JumpButton")
-	return if jump and jump:IsA("GuiObject") then jump else nil
+	if not frame then
+		return
+	end
+	for _, child in frame:GetChildren() do
+		if child:IsA("GuiObject") and child.Name:match("Jump") then
+			child.Visible = false
+		end
+	end
 end
 
 --- Builds the touch UI. Returns false (and builds nothing) on non-touch devices.
@@ -252,6 +254,7 @@ function TouchControls.start(handlers: Handlers): boolean
 
 	local fire = makeHoldZone(gui, "Fire", "FIRE", handlers.onFireDown, handlers.onFireUp)
 	local aim = makeHoldZone(gui, "Aim", "AIM", handlers.onAimDown, handlers.onAimUp)
+	local jump = makeTapButton(gui, "Jump", "JUMP", handlers.onJump)
 	local reload = makeTapButton(gui, "Reload", "RELOAD", handlers.onReload)
 	local light = makeTapButton(gui, "Flashlight", "LIGHT", handlers.onFlashlight)
 	local sprint = makeToggle(gui, "Sprint", "SPRINT", handlers.onSprintChanged)
@@ -284,14 +287,11 @@ function TouchControls.start(handlers: Handlers): boolean
 		local edge = math.floor(math.clamp(viewport.Y * 0.04, 16, 44))
 
 		--[[
-			Everything sits ABOVE the lives row, which is drawn bottom-right by
-			the HUD. Its geometry is shared through Config.Hud so the two files
-			cannot disagree about where it ends.
+			The bottom edge is entirely ours on touch: the HUD moves its lives
+			row to the top-left there precisely so the controls can have this
+			corner to themselves.
 		]]
-		local hud = Config.Hud
-		local hudScale = math.clamp(viewport.Y / hud.ReferenceHeight, 0.85, 1.6)
-		local livesTop = math.floor((hud.LivesBottomOffset + hud.LivesIconSize) * hudScale)
-		local floorY = livesTop + gap
+		local floorY = edge
 
 		local fireSize = math.floor(112 * s)
 		local aimSize = math.floor(78 * s)
@@ -309,19 +309,18 @@ function TouchControls.start(handlers: Handlers): boolean
 		reload.Position = UDim2.new(1, -edge, 1, -(floorY + fireSize + gap))
 
 		--[[
+			Ours, third in the row after FIRE and AIM.
+
 			Roblox's own jump button is drawn in the bottom-right corner, which
-			is where FIRE is — so by default they overlap. It is not ours to
-			rebuild, but it is ours to move: it joins the row to the left of
-			AIM. The PlayerModule creates it asynchronously and rebuilds it on
-			respawn, which is why this runs on every layout pass rather than
-			once.
+			is where FIRE is. Rather than reach into PlayerGui.TouchGui by name
+			and re-anchor an instance the PlayerModule owns — which silently
+			does nothing if any of those names is wrong, leaving the button
+			under FIRE — we hide theirs and place our own. Hidden every pass,
+			since the PlayerModule recreates it on respawn.
 		]]
-		local jump = findJumpButton()
-		if jump then
-			jump.AnchorPoint = Vector2.new(1, 1)
-			jump.Size = UDim2.fromOffset(jumpSize, jumpSize)
-			jump.Position = UDim2.new(1, -(edge + fireSize + gap + aimSize + gap), 1, -floorY)
-		end
+		hideRobloxJump()
+		jump.Size = UDim2.fromOffset(jumpSize, jumpSize)
+		jump.Position = UDim2.new(1, -(edge + fireSize + gap + aimSize + gap), 1, -floorY)
 
 		-- Left cluster, positioned by its bottom-right corner from the left
 		-- edge, and lifted clear of Roblox's movement thumbstick.

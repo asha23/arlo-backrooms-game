@@ -89,6 +89,15 @@ TouchControls.start({
 	onAimUp = function()
 		weapons:setAim(false)
 	end,
+	onJump = function()
+		-- Roblox's own jump button is hidden on touch (it sits under FIRE), so
+		-- this drives the Humanoid directly.
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.Health > 0 then
+			humanoid.Jump = true
+		end
+	end,
 })
 
 Ambience.start()

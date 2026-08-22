@@ -629,6 +629,14 @@ local Config = {
 		LivesIconSize = 30,
 		LivesPitch = 34,
 		LivesBottomOffset = 22,
+		--[[
+			On touch the lives row moves out of the bottom-right corner
+			entirely and sits top-left above the status bars, because the
+			bottom right is where every control lives. Smaller there too: eight
+			icons at desktop size is a wide band across a phone.
+		]]
+		TouchLivesScale = 0.72,
+		TouchLivesTop = 104,
 		-- Reference viewport height the figures above are written against.
 		ReferenceHeight = 720,
 	},
