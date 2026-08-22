@@ -1,4 +1,5 @@
 --!strict
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -23,8 +24,20 @@ local WeaponService = require(script.WeaponService)
 -- Before anything else: clients block on these existing.
 Remotes.initialize()
 
--- Before anything is built: clear out template content the level would
--- otherwise generate on top of.
+--[[
+	FIRST, before anything else runs.
+
+	Roblox spawns characters automatically the moment a player is present, and
+	that can happen while this script is still setting the level up. Until the
+	maze exists there is nothing to stand on, so an auto-spawned character drops
+	straight through the world — which only became visible once the cleanup
+	started removing the template Baseplate that had been silently catching
+	them. Nothing may spawn until we say so.
+]]
+Players.CharacterAutoLoads = false
+
+-- Now it is safe to clear out template content the level would otherwise
+-- generate on top of.
 WorkspaceCleaner.run()
 
 LightingService.start()
@@ -36,6 +49,7 @@ local openPositions = LevelGenerator.openPositions(grid)
 -- land on the same tile. Entities may spawn anywhere open.
 local pool = SpawnPoints.new(openPositions, Random.new())
 
+PlayerService.spawnPosition = LevelGenerator.spawnPosition(grid)
 PlayerService.start()
 ScoreService.start()
 LeaderboardService.start()
