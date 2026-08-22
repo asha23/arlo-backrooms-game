@@ -1,0 +1,53 @@
+{
+  "name": "arlo-backrooms-game",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Packages": { "$path": { "optional": "Packages" } },
+      "Shared": { "$path": "src/shared" }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": { "$path": "src/server" }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/client" }
+      }
+    },
+
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "FilteringEnabled": true
+      }
+    },
+
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Ambient": [0, 0, 0],
+        "OutdoorAmbient": [0, 0, 0],
+        "Brightness": 0,
+        "ClockTime": 0,
+        "GlobalShadows": true,
+        "FogEnd": 90,
+        "FogStart": 20,
+        "FogColor": [0.35, 0.33, 0.22],
+        "EnvironmentDiffuseScale": 0,
+        "EnvironmentSpecularScale": 0
+      }
+    },
+
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": { "RespectFilteringEnabled": true }
+    }
+  }
+}

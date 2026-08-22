@@ -1,0 +1,17 @@
+# Wally
+/Packages
+/ServerPackages
+/DevPackages
+wally.lock
+
+# Rojo / build output
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+/build
+
+# OS
+.DS_Store
