@@ -127,8 +127,8 @@ local function muzzleFlash(position: Vector3)
 	flash.Parent = workspace
 
 	local light = Instance.new("PointLight")
-	light.Brightness = 3.5
-	light.Range = 16
+	light.Brightness = 2.2
+	light.Range = 14
 	light.Color = Color3.fromRGB(255, 226, 160)
 	light.Parent = flash
 

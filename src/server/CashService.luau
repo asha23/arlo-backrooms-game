@@ -51,7 +51,7 @@ local function buildNote(origin: CFrame): Model
 
 	local glow = Instance.new("PointLight")
 	glow.Color = SETTINGS.Color
-	glow.Brightness = 0.7
+	glow.Brightness = 0.45
 	glow.Range = 12
 	glow.Parent = note
 

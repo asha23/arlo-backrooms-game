@@ -156,8 +156,8 @@ local function buildRig(variant: Variant): Model
 			-- Just enough to catch on the wall beside it in a dark corridor.
 			local light = Instance.new("PointLight")
 			light.Color = build.EyeGlowColor
-			light.Brightness = 0.7
-			light.Range = 7
+			light.Brightness = 0.45
+			light.Range = 6
 			light.Parent = eye
 		end
 	end

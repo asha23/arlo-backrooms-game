@@ -67,7 +67,7 @@ local function buildBox(origin: CFrame): Model
 
 	local glow = Instance.new("PointLight")
 	glow.Color = Color3.fromRGB(255, 120, 120)
-	glow.Brightness = 0.6
+	glow.Brightness = 0.4
 	glow.Range = 11
 	glow.Parent = case
 

@@ -54,6 +54,17 @@ local Config = {
 		]]
 		MaxActiveLights = 64,
 		ActiveLightRadius = 150,
+
+		--[[
+			Master brightness dial for every light the level builds.
+
+			One number rather than five scattered constants, because "the
+			lighting is too bright/too dark" is a single judgement and it should
+			be a single edit. Halve this and the whole level dims coherently —
+			fixtures, dead fixtures and spawn lighting keep their relationship
+			to each other.
+		]]
+		LightScale = 1,
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
@@ -66,7 +77,7 @@ local Config = {
 			ever genuinely unlit — being unable to see at all reads as a bug,
 			not as atmosphere.
 		]]
-		FlickerDimBrightness = 0.2,
+		FlickerDimBrightness = 0.05,
 
 		--[[
 			Proportion of fixtures that are simply dead.
@@ -77,11 +88,11 @@ local Config = {
 			leaving long stretches where the flashlight actually matters.
 		]]
 		DeadLightChance = 0.28,
-		DeadLightBrightness = 0.35,
+		DeadLightBrightness = 0.1,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 2,
-		SpawnLightRange = 34,
+		SpawnLightBrightness = 0.9,
+		SpawnLightRange = 26,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to

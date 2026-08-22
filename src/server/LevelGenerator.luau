@@ -251,7 +251,8 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(1.1, 1.6)
+			local base = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.32, 0.55)
+			light.Brightness = base * LEVEL.LightScale
 			-- Range is reach, not brightness: kept wide enough that every open
 			-- cell falls inside some fixture's falloff (worst case measured at
 			-- 25.5 studs), while Brightness stays low so it reads as gloom.
@@ -305,7 +306,7 @@ local function buildSpawnLighting(grid: Grid, cell: Vector2, parent: Instance)
 			panel:AddTag("Stable")
 
 			local light = Instance.new("PointLight")
-			light.Brightness = LEVEL.SpawnLightBrightness
+			light.Brightness = LEVEL.SpawnLightBrightness * LEVEL.LightScale
 			light.Range = LEVEL.SpawnLightRange
 			light.Color = Color3.fromRGB(255, 250, 230)
 			light.Shadows = false
