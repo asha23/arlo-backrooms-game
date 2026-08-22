@@ -157,7 +157,16 @@ end
 	than tracked, because the entity's body is destroyed shortly after death and
 	the scream has to outlive it.
 ]]
-function EntitySounds.playDeath(self: EntitySounds)
+--[[
+	`emitter` lets the caller supply a detached part to play from.
+
+	The body is destroyed the moment it dies — Roblox's content maturity
+	questionnaire draws the Minimal/Mild line at "bodies disappearing instantly"
+	versus a realistic depiction of death, and a corpse lying on the floor is
+	the wrong side of it. So the scream cannot be parented to the corpse; it
+	plays from a standalone part that outlives it.
+]]
+function EntitySounds.playDeath(self: EntitySounds, emitterOverride: BasePart?)
 	for _, sound in { self.drone, self.idle, self.alert, self.chase } do
 		if sound then
 			sound:Stop()
@@ -165,7 +174,7 @@ function EntitySounds.playDeath(self: EntitySounds)
 	end
 
 	local scream = SETTINGS.DeathScream
-	local emitter = self._emitter
+	local emitter = emitterOverride or self._emitter
 
 	if not playable(scream.Id) then
 		return

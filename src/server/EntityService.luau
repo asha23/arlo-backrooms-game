@@ -8,6 +8,7 @@
 	target" AI — it just grinds into a wall and stays there.
 ]]
 
+local Debris = game:GetService("Debris")
 local PathfindingService = game:GetService("PathfindingService")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
@@ -1101,19 +1102,57 @@ local function spawnOne(folder: Folder, position: Vector3)
 
 	humanoid.Died:Connect(function()
 		alive -= 1
-		sounds:playDeath()
+
+		local root = model.PrimaryPart
+		local deathAt = if root then root.Position else Vector3.zero
+
+		--[[
+			A standalone emitter, so the scream survives the body.
+
+			The body itself is removed straight away rather than left lying
+			there: Roblox's content maturity questionnaire draws its line
+			between "implied or unrealistic depictions of violence — bodies
+			disappearing instantly" and a realistic depiction of death, and a
+			corpse on the floor is the wrong side of that line. This keeps the
+			game's violence unmistakably unrealistic, which is what holds the
+			rating down.
+		]]
+		local emitter = Instance.new("Part")
+		emitter.Name = "DeathEmitter"
+		emitter.Anchored = true
+		emitter.CanCollide = false
+		emitter.CanQuery = false
+		emitter.CanTouch = false
+		emitter.Transparency = 1
+		emitter.Size = Vector3.one
+		emitter.CFrame = CFrame.new(deathAt)
+		emitter.Parent = workspace
+		Debris:AddItem(emitter, 8)
+
+		sounds:playDeath(emitter)
 
 		-- Drop the bounty where it fell, at floor level rather than at the
 		-- root, which on a ten-stud rig is chest height on a ladder.
-		local root = model.PrimaryPart
 		if root then
-			CashService.drop(Vector3.new(root.Position.X, position.Y, root.Position.Z))
+			CashService.drop(Vector3.new(deathAt.X, position.Y, deathAt.Z))
 		end
-		-- Long enough for the death cry to finish before the body vanishes.
-		task.delay(SETTINGS.RespawnDelay, function()
-			if model.Parent then
-				model:Destroy()
+
+		--[[
+			Dissolve rather than blink out. A quarter of a second reads as the
+			thing unmaking itself, which is still unambiguously unrealistic,
+			where a hard cut mid-frame just looks like a bug.
+		]]
+		brains[model] = nil
+		task.spawn(function()
+			for step = 0, 1, 0.12 do
+				for _, part in model:GetDescendants() do
+					if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+						part.Transparency = step
+					end
+				end
+				task.wait(0.03)
 			end
+			model:Destroy()
 		end)
 	end)
 
