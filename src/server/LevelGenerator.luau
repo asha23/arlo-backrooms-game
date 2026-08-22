@@ -251,8 +251,11 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.85, 1.3)
-			light.Range = 34
+			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.3, 0.55)
+			-- Range is reach, not brightness: kept wide enough that every open
+			-- cell falls inside some fixture's falloff (worst case measured at
+			-- 25.5 studs), while Brightness stays low so it reads as gloom.
+			light.Range = 28
 			light.Color = if dead
 				then Color3.fromRGB(190, 200, 210)
 				else Color3.fromRGB(255, 247, 214)

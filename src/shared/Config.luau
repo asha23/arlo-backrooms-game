@@ -37,7 +37,7 @@ local Config = {
 			ever genuinely unlit — being unable to see at all reads as a bug,
 			not as atmosphere.
 		]]
-		FlickerDimBrightness = 0.22,
+		FlickerDimBrightness = 0.08,
 
 		--[[
 			Proportion of fixtures that are simply dead.
@@ -48,11 +48,11 @@ local Config = {
 			leaving long stretches where the flashlight actually matters.
 		]]
 		DeadLightChance = 0.28,
-		DeadLightBrightness = 0.4,
+		DeadLightBrightness = 0.14,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 2,
-		SpawnLightRange = 38,
+		SpawnLightBrightness = 1,
+		SpawnLightRange = 28,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
@@ -66,8 +66,8 @@ local Config = {
 	},
 
 	Player = {
-		WalkSpeed = 20,
-		SprintSpeed = 34,
+		WalkSpeed = 26,
+		SprintSpeed = 42,
 		MaxStamina = 100,
 		StaminaDrain = 14, -- per second while sprinting
 		StaminaRegen = 12, -- per second while not sprinting
@@ -112,8 +112,8 @@ local Config = {
 				Id = "Wanderer",
 				Weight = 3,
 				Health = 120,
-				WalkSpeed = 14,
-				ChaseSpeed = 25,
+				WalkSpeed = 15,
+				ChaseSpeed = 29,
 				Score = 100,
 				Tendrils = 0,
 				Build = {
@@ -140,8 +140,8 @@ local Config = {
 				Id = "Slender",
 				Weight = 1,
 				Health = 240,
-				WalkSpeed = 12,
-				ChaseSpeed = 27,
+				WalkSpeed = 13,
+				ChaseSpeed = 31,
 				Score = 300,
 				Tendrils = 4,
 				Build = {

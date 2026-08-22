@@ -9,6 +9,7 @@
 ]]
 
 local PathfindingService = game:GetService("PathfindingService")
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -24,6 +25,25 @@ local EntityService = {}
 local openPositions: { Vector3 } = {}
 local alive = 0
 local rng = Random.new()
+
+--[[
+	Entities collide with the level and with players, but never with each other.
+
+	Without this, two of them meeting in a nine-stud corridor shove each other
+	around, and — far worse — two spawning on the same tile stack vertically,
+	which is what put them up by the ceiling.
+]]
+local COLLISION_GROUP = "Entities"
+
+local function ensureCollisionGroup()
+	-- Registering twice throws, and this may run on a warm server.
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup(COLLISION_GROUP)
+	end)
+	pcall(function()
+		PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, false)
+	end)
+end
 
 local function newPart(name: string, size: Vector3, color: Color3, parent: Instance): Part
 	local p = Instance.new("Part")
@@ -73,6 +93,7 @@ local function buildRig(variant: Variant): Model
 	local root = newPart("HumanoidRootPart", torsoSize, build.BodyColor, model)
 	root.Transparency = 1
 	root.CanCollide = true
+	root.CollisionGroup = COLLISION_GROUP
 
 	local torso = newPart("Torso", torsoSize, build.BodyColor, model)
 	local head = newPart("Head", headSize, build.HeadColor, model)
@@ -133,8 +154,8 @@ local function buildRig(variant: Variant): Model
 			-- Just enough to catch on the wall beside it in a dark corridor.
 			local light = Instance.new("PointLight")
 			light.Color = build.EyeGlowColor
-			light.Brightness = 1.1
-			light.Range = 9
+			light.Brightness = 0.7
+			light.Range = 7
 			light.Parent = eye
 		end
 	end
@@ -225,6 +246,59 @@ local function buildRig(variant: Variant): Model
 
 	model.PrimaryPart = root
 	return model
+end
+
+--[[
+	Corrects the rig's standing height from measured geometry.
+
+	The joint maths says HipHeight should equal the leg length, and on paper the
+	feet land exactly on the floor. But R6's handling of HipHeight is not
+	something to take on trust with non-standard proportions, so rather than
+	assume, this measures: raycast down for the real floor, find the lowest
+	point of the assembled rig, and close the gap. It converges in a couple of
+	passes and costs nothing afterwards.
+
+	It also means retuning proportions in Config can't silently leave entities
+	hovering — the correction just absorbs it.
+]]
+local function groundRig(model: Model, humanoid: Humanoid)
+	local root = model.PrimaryPart
+	if not root then
+		return
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { model }
+
+	for _ = 1, 6 do
+		task.wait(0.15)
+		if not model.Parent or humanoid.Health <= 0 then
+			return
+		end
+
+		local hit = workspace:Raycast(root.Position, Vector3.new(0, -40, 0), params)
+		if not hit then
+			continue
+		end
+
+		-- Lowest point of anything visible, so the feet are what land.
+		local lowest = math.huge
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 1 then
+				lowest = math.min(lowest, part.Position.Y - part.Size.Y / 2)
+			end
+		end
+		if lowest == math.huge then
+			return
+		end
+
+		local gap = lowest - hit.Position.Y
+		if math.abs(gap) < 0.2 then
+			return -- standing correctly
+		end
+		humanoid.HipHeight = math.max(0, humanoid.HipHeight - gap)
+	end
 end
 
 --[[
@@ -587,6 +661,7 @@ local function spawnOne(folder: Folder, position: Vector3)
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	animateRig(model, humanoid)
+	task.spawn(groundRig, model, humanoid)
 
 	humanoid.Died:Connect(function()
 		alive -= 1
@@ -622,8 +697,15 @@ local function spawnGroup(folder: Folder)
 		return
 	end
 
-	-- Open cells near the anchor, gathered once. Snapping to a real cell is
-	-- what keeps a group member from starting inside a wall.
+	--[[
+		Open cells near the anchor, gathered once. Snapping to a real cell keeps
+		a group member from starting inside a wall.
+
+		Cells are then drawn WITHOUT replacement. Drawing with replacement meant
+		two members of a group routinely got the same tile — and since the root
+		is the collider, the second one spawned inside the first and popped out
+		on top of it. A few of those stacked and they ended up at the ceiling.
+	]]
 	local nearby: { Vector3 } = {}
 	local radiusSquared = SETTINGS.GroupRadius ^ 2
 	for _, candidate in openPositions do
@@ -632,8 +714,26 @@ local function spawnGroup(folder: Folder)
 		end
 	end
 
+	-- Don't reuse a tile something is already standing on.
+	for model in brains do
+		local root = model.PrimaryPart
+		if not root then
+			continue
+		end
+		for index = #nearby, 1, -1 do
+			if (nearby[index] - root.Position).Magnitude < 6 then
+				table.remove(nearby, index)
+			end
+		end
+	end
+
 	for _ = 1, size do
-		local position = if #nearby > 0 then nearby[rng:NextInteger(1, #nearby)] else anchor
+		if #nearby == 0 then
+			break -- no clear tile left nearby; better to spawn fewer
+		end
+		local index = rng:NextInteger(1, #nearby)
+		local position = nearby[index]
+		table.remove(nearby, index)
 		spawnOne(folder, position)
 	end
 end
@@ -641,6 +741,7 @@ end
 --- `positions` are the world-space centres of open floor cells.
 function EntityService.start(positions: { Vector3 })
 	openPositions = positions
+	ensureCollisionGroup()
 
 	local folder = Instance.new("Folder")
 	folder.Name = "Entities"

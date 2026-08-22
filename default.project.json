@@ -37,8 +37,8 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Ambient": [0.115, 0.105, 0.088],
-        "OutdoorAmbient": [0.115, 0.105, 0.088],
+        "Ambient": [0.055, 0.05, 0.042],
+        "OutdoorAmbient": [0.055, 0.05, 0.042],
         "Brightness": 0,
         "ClockTime": 0,
         "GlobalShadows": true,

@@ -417,8 +417,8 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 
 	local beacon = Instance.new("PointLight")
 	beacon.Color = tint
-	beacon.Brightness = 1.3
-	beacon.Range = 18
+	beacon.Brightness = 0.7
+	beacon.Range = 14
 	beacon.Parent = pedestal
 
 	local billboard = Instance.new("BillboardGui")
