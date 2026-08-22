@@ -29,6 +29,12 @@ stylua src/       # format
 selene src/       # lint
 ```
 
+> **Note on selene's version.** It's pinned to `0.26.1` rather than latest.
+> From `0.27.0` onward upstream builds its single macOS release asset on an
+> Apple Silicon runner, so the published binary is arm64-only and won't run on
+> an Intel Mac. `0.26.1` is the last release with an x86_64 macOS build. If this
+> project is only ever worked on from Apple Silicon, bump it back to latest.
+
 ## Layout
 
 | Path                | Becomes                                  |
