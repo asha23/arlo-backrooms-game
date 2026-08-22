@@ -203,7 +203,7 @@ do
 	print(
 		string.format(
 			"[Client] layout: touch=%s (TouchEnabled=%s MouseEnabled=%s Keyboard=%s) viewport=%dx%d",
-			tostring(Device.isTouch()),
+			tostring(Device.usesTouchLayout()),
 			tostring(uis.TouchEnabled),
 			tostring(uis.MouseEnabled),
 			tostring(uis.KeyboardEnabled),
@@ -212,7 +212,9 @@ do
 		)
 	)
 	print(
-		`[Client] lives sit {if Device.isTouch() then "top-left above the bars" else "bottom-right"}`
+		`[Client] lives sit {if Device.usesTouchLayout()
+			then "top-left above the bars"
+			else "bottom-right"}`
 	)
 end
 

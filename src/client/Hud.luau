@@ -12,7 +12,7 @@ local Device = require(ReplicatedStorage.Shared.Device)
 
 -- On touch devices the bottom-left is Roblox's movement thumbstick and the
 -- bottom-right is our fire button, so the readouts move to the top.
-local TOUCH_LAYOUT = Device.isTouch()
+local TOUCH_LAYOUT = Device.usesTouchLayout()
 
 local Hud = {}
 Hud.__index = Hud

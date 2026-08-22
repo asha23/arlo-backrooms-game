@@ -21,7 +21,7 @@ local Device = require(ReplicatedStorage.Shared.Device)
 local SETTINGS = Config.Minimap
 
 -- Smaller on phones, where 190px is a large fraction of the screen.
-local TOUCH = Device.isTouch()
+local TOUCH = Device.usesTouchLayout()
 
 local player = Players.LocalPlayer
 

@@ -15,13 +15,30 @@ local UserInputService = game:GetService("UserInputService")
 local Device = {}
 
 --[[
-	True on anything with a touchscreen and no mouse.
+	Whether to BUILD the on-screen controls.
 
-	The mouse test matters: a laptop with a touchscreen reports TouchEnabled,
-	and it should keep the desktop layout and its keyboard bindings.
+	Strict: a laptop with a touchscreen has a keyboard and mouse already, and
+	does not want a fire button drawn over its game.
 ]]
 function Device.isTouch(): boolean
 	return UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+end
+
+--[[
+	Whether to LAY OUT the HUD for thumbs.
+
+	Deliberately looser than isTouch: a touchscreen alone is enough.
+
+	The two questions are not the same, and treating them as one was the bug.
+	MouseEnabled can report true on a device that is being played with thumbs —
+	Studio's emulator with a real mouse attached is the obvious case — and when
+	that happened the lives row stayed in the bottom-right corner underneath the
+	fire button. Getting this wrong on a tablet leaves controls stacked on top of
+	each other; getting it wrong on a touchscreen laptop moves a health bar a few
+	pixels. Those costs are not close, so this errs toward the touch layout.
+]]
+function Device.usesTouchLayout(): boolean
+	return UserInputService.TouchEnabled
 end
 
 --[[
