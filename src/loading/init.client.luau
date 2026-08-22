@@ -89,6 +89,71 @@ detail.Parent = cover
 
 local currentLabel = ""
 
+--[[
+	All-time top five, shown while the level finishes loading.
+
+	The loading screen is the only moment a player is guaranteed to be standing
+	still with nothing to do, which makes it the right place for a scoreboard —
+	and it gives the wait a reason to exist beyond hiding a dark room.
+
+	Requested rather than pushed: the server may not have read the board yet
+	when this script starts, and an empty board is a perfectly normal answer.
+]]
+local function showLeaderboard(parent: Instance)
+	local holder = Instance.new("Frame")
+	holder.Name = "HighScores"
+	holder.AnchorPoint = Vector2.new(0.5, 0)
+	holder.Position = UDim2.new(0.5, 0, 0.60, 0)
+	holder.Size = UDim2.fromOffset(360, 170)
+	holder.BackgroundTransparency = 1
+	holder.Parent = parent
+
+	local heading = Instance.new("TextLabel")
+	heading.Size = UDim2.new(1, 0, 0, 20)
+	heading.BackgroundTransparency = 1
+	heading.Font = Enum.Font.GothamBold
+	heading.TextSize = 14
+	heading.TextColor3 = Color3.fromRGB(232, 126, 34)
+	heading.Text = "ALL-TIME HIGH SCORES"
+	heading.Parent = holder
+
+	local rows = {}
+	for index = 1, 5 do
+		local row = Instance.new("TextLabel")
+		row.Size = UDim2.new(1, 0, 0, 22)
+		row.Position = UDim2.new(0, 0, 0, 8 + index * 24)
+		row.BackgroundTransparency = 1
+		row.Font = Enum.Font.Code
+		row.TextSize = 14
+		row.TextColor3 = Color3.fromRGB(178, 170, 152)
+		row.Text = ""
+		row.Parent = holder
+		rows[index] = row
+	end
+
+	local remotesFolder = ReplicatedStorage:WaitForChild("Shared", 20)
+	local module = remotesFolder and (remotesFolder :: Instance):FindFirstChild("Remotes")
+	if not module then
+		return
+	end
+	local Remotes = require(module) :: any
+
+	Remotes.Leaderboard().OnClientEvent:Connect(function(board, ok)
+		if not ok or #board == 0 then
+			rows[1].Text = "no scores recorded yet"
+			return
+		end
+		for index = 1, 5 do
+			local entry = board[index]
+			rows[index].Text = if entry
+				then string.format("%d. %-18s %8d", index, entry.name, entry.score)
+				else ""
+		end
+	end)
+
+	Remotes.RequestLeaderboard():FireServer()
+end
+
 local function report(text: string)
 	currentLabel = text
 	detail.Text = text
@@ -123,6 +188,8 @@ local function waitFor(label: string, budget: number, predicate: () -> boolean):
 	end
 	return true
 end
+
+showLeaderboard(cover)
 
 waitFor("loading assets", 30, function()
 	return game:IsLoaded()
@@ -232,6 +299,11 @@ TweenService:Create(cover, fade, { BackgroundTransparency = 1 }):Play()
 TweenService:Create(title, fade, { TextTransparency = 1 }):Play()
 TweenService:Create(status, fade, { TextTransparency = 1 }):Play()
 TweenService:Create(detail, fade, { TextTransparency = 1 }):Play()
+for _, descendant in cover:GetDescendants() do
+	if descendant:IsA("TextLabel") then
+		TweenService:Create(descendant, fade, { TextTransparency = 1 }):Play()
+	end
+end
 
 task.delay(1.3, function()
 	gui:Destroy()

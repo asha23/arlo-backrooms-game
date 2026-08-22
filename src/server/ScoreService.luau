@@ -38,6 +38,8 @@ local cash: { [Player]: number } = {}
 
 local stats: { [Player]: { score: IntValue, kills: IntValue, cash: IntValue } } = {}
 
+--- Exposed so the leaderboard can read a final score without duplicating the
+--- bookkeeping.
 local function recordFor(player: Player): Record
 	local record = records[player]
 	if not record then
@@ -127,6 +129,10 @@ end
 --- Current wallet balance, for anything that will eventually spend it.
 function ScoreService.cashFor(player: Player): number
 	return cash[player] or 0
+end
+
+function ScoreService.recordFor(player: Player): Record
+	return recordFor(player)
 end
 
 function ScoreService.start()

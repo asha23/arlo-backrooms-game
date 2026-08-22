@@ -17,6 +17,22 @@ the entities stay visible behind it.
 | `thumbnail-3-arsenal.png` | 1920×1080 | Third thumbnail. |
 | `icon-512.png` | 512×512 | **Game icon.** Creator Dashboard → your experience → Basic Settings → Game Icon. This is the square shown in the games list and on mobile. |
 
+## These do not ship inside the place file
+
+Worth being clear about, because it is not obvious: a Roblox **game icon and
+thumbnails are experience-level assets, not place contents.** They live against
+the experience on Roblox's servers, not inside `build.rbxl`, so there is no way
+to make them "ship with" the upload — publishing the place will never carry
+them. They are uploaded once against the experience and then persist across
+every future publish of the place.
+
+Roblox's Open Cloud API can upload Decals and other *assets*, but game icon and
+thumbnail slots are dashboard-only, so this step cannot currently be scripted.
+
+All four files have been checked against Roblox's requirements: PNG, icon
+512×512 square, thumbnails exactly 1920×1080 (16:9), all well under the 10 MB
+limit.
+
 ## Uploading
 
 1. https://create.roblox.com/dashboard/creations → select the experience.

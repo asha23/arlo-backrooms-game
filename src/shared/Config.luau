@@ -80,7 +80,7 @@ local Config = {
 
 		-- Applied to Lighting.Ambient at runtime, scaled by LightScale. Kept
 		-- here rather than in default.project.json so one dial reaches it.
-		BaseAmbient = Color3.fromRGB(13, 12, 10),
+		BaseAmbient = Color3.fromRGB(18, 16, 14),
 
 		--[[
 			Fixture light reach — and the single biggest cause of the level
@@ -159,9 +159,17 @@ local Config = {
 		-- lights outright at no visual cost.
 		DeadLightBrightness = 0,
 
-		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 0.85,
-		SpawnLightRange = 22,
+		SpawnLightRadius = 4, -- cells around spawn that get guaranteed lighting
+		--[[
+			The spawn room is lit far more strongly than the corridors, and
+			deliberately so. The rest of the level being gloomy is the point;
+			ARRIVING in gloom is not — it reads as the game being broken rather
+			than as atmosphere. These are several times the corridor fixtures'
+			values, which is what makes the entrance somewhere you can get your
+			bearings before walking into the dark.
+		]]
+		SpawnLightBrightness = 2.6,
+		SpawnLightRange = 34,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to

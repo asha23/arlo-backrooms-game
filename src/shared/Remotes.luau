@@ -68,6 +68,8 @@ local MANIFEST: { [string]: string } = {
 	Escaped = "RemoteEvent",
 	ToggleFlashlight = "RemoteEvent",
 	FlashlightState = "RemoteEvent",
+	Leaderboard = "RemoteEvent",
+	RequestLeaderboard = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -146,6 +148,17 @@ end
 -- Client -> Server: switch the torch on or off.
 function Remotes.ToggleFlashlight(): RemoteEvent
 	return get("ToggleFlashlight", "RemoteEvent")
+end
+
+-- Client -> Server: send me the all-time top scores.
+function Remotes.RequestLeaderboard(): RemoteEvent
+	return get("RequestLeaderboard", "RemoteEvent")
+end
+
+-- Server -> Client: the all-time top scores, as an ordered array of
+-- { name, score } entries.
+function Remotes.Leaderboard(): RemoteEvent
+	return get("Leaderboard", "RemoteEvent")
 end
 
 -- Server -> Client: whether you have a torch, whether it is lit, and how much

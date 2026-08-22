@@ -1,13 +1,15 @@
 --!strict
 --[[
-	Telescopic sight for weapons that have one.
+	Telescopic sight.
 
-	Built from plain Frames rather than an image, so it needs no uploaded
-	assets. The occluder is an octagon — four frames boxing in a square hole,
-	plus four more rotated 45 degrees to cut the corners off — with a circular
-	ring stroked on top. A true circular mask isn't possible without an image
-	with an alpha channel, and an octagon behind a drawn ring is
-	indistinguishable from one in motion.
+	Built from plain Frames, so it needs no uploaded image assets.
+
+	The occluder is sized in PIXELS from the viewport rather than in scale.
+	Scale is the obvious way to write it and it is wrong: a left panel of width
+	0.5 and a right panel of width 0.5 together cover the entire screen, which
+	is exactly what the first version did — the scope zoomed correctly and then
+	painted black over everything it had zoomed. Deriving the panel widths from
+	the actual viewport is the only way the aperture is guaranteed to survive.
 ]]
 
 local Players = game:GetService("Players")
@@ -19,6 +21,9 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local player = Players.LocalPlayer
 
+-- Aperture diameter as a fraction of viewport height.
+local APERTURE = 0.66
+
 local Scope = {}
 Scope.__index = Scope
 
@@ -27,18 +32,18 @@ export type Scope = typeof(setmetatable(
 		active: boolean,
 		_gui: ScreenGui,
 		_baseFov: number,
-		_baseSensitivity: number,
 	},
 	Scope
 ))
 
 local BLACK = Color3.new(0, 0, 0)
 
-local function frame(parent: Instance, name: string): Frame
+local function panel(parent: Instance, name: string): Frame
 	local f = Instance.new("Frame")
 	f.Name = name
 	f.BackgroundColor3 = BLACK
 	f.BorderSizePixel = 0
+	f.ZIndex = 2
 	f.Parent = parent
 	return f
 end
@@ -54,52 +59,26 @@ function Scope.new(): Scope
 	gui.Enabled = false
 	gui.Parent = playerGui
 
-	-- The hole is a square of side `2 * HOLE` scale units, centred.
-	local HOLE = 0.30 -- half-height of the aperture, in scale units
+	local top = panel(gui, "Top")
+	local bottom = panel(gui, "Bottom")
+	local left = panel(gui, "Left")
+	local right = panel(gui, "Right")
 
-	-- Sides. Left and right are sized in scale so they work at any aspect.
-	local top = frame(gui, "Top")
-	top.Size = UDim2.new(1, 0, 0.5 - HOLE, 0)
-	top.Position = UDim2.new(0, 0, 0, 0)
-
-	local bottom = frame(gui, "Bottom")
-	bottom.Size = UDim2.new(1, 0, 0.5 - HOLE, 0)
-	bottom.Position = UDim2.new(0, 0, 0.5 + HOLE, 0)
-
-	local left = frame(gui, "Left")
-	left.Size = UDim2.new(0.5, 0, 2 * HOLE, 0)
-	left.Position = UDim2.new(0, 0, 0.5 - HOLE, 0)
-	left.AnchorPoint = Vector2.new(0, 0)
-
-	local right = frame(gui, "Right")
-	right.Size = UDim2.new(0.5, 0, 2 * HOLE, 0)
-	right.Position = UDim2.new(1, 0, 0.5 - HOLE, 0)
-	right.AnchorPoint = Vector2.new(1, 0)
-
-	--[[
-		The aperture is square at this point. These four bars sit at 45 degrees
-		across each corner of it, turning the square into an octagon that reads
-		as round once the ring is drawn over it.
-	]]
-	for index, rotation in { 45, -45, 45, -45 } do
-		local corner = frame(gui, `Corner{index}`)
-		corner.AnchorPoint = Vector2.new(0.5, 0.5)
-		corner.Size = UDim2.new(0, 4000, 0, 4000)
-		corner.Rotation = rotation
-		local x = if index <= 2 then -1 else 1
-		local y = if index % 2 == 1 then -1 else 1
-		-- Push each bar out along its diagonal so only its edge crosses the
-		-- corner of the aperture.
-		corner.Position = UDim2.new(0.5, x * 2000 + x * 30, 0.5, y * 2000 + y * 30)
+	-- Corner fillets, sized from the aperture so they can never grow to cover
+	-- the view. They cut the square aperture into an octagon; the ring drawn
+	-- over the top reads as a circle in motion.
+	local fillets = {}
+	for index = 1, 4 do
+		local f = panel(gui, `Fillet{index}`)
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Rotation = 45
+		table.insert(fillets, f)
 	end
 
-	-- Aperture edge and reticle sit above the occluder.
 	local ring = Instance.new("Frame")
 	ring.Name = "Ring"
 	ring.AnchorPoint = Vector2.new(0.5, 0.5)
 	ring.Position = UDim2.fromScale(0.5, 0.5)
-	ring.Size = UDim2.new(2 * HOLE, 0, 2 * HOLE, 0)
-	ring.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	ring.BackgroundTransparency = 1
 	ring.ZIndex = 3
 	ring.Parent = gui
@@ -108,45 +87,99 @@ function Scope.new(): Scope
 	round.CornerRadius = UDim.new(0.5, 0)
 	round.Parent = ring
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 26
-	stroke.Color = BLACK
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = ring
-
 	local edge = Instance.new("UIStroke")
-	edge.Thickness = 2
-	edge.Color = Color3.fromRGB(28, 28, 26)
+	edge.Thickness = 3
+	edge.Color = Color3.fromRGB(20, 20, 19)
 	edge.Parent = ring
 
-	-- Crosshair: two hairlines with a gap at the centre, plus range ticks.
-	local function hair(name: string, size: UDim2, position: UDim2)
+	local function hair(name: string): Frame
 		local h = Instance.new("Frame")
 		h.Name = name
 		h.AnchorPoint = Vector2.new(0.5, 0.5)
-		h.Size = size
-		h.Position = position
-		h.BackgroundColor3 = Color3.fromRGB(16, 16, 15)
+		h.BackgroundColor3 = Color3.fromRGB(18, 18, 17)
 		h.BorderSizePixel = 0
 		h.ZIndex = 4
 		h.Parent = gui
+		return h
 	end
 
-	hair("HairLeft", UDim2.new(0.24, 0, 0, 2), UDim2.fromScale(0.38, 0.5))
-	hair("HairRight", UDim2.new(0.24, 0, 0, 2), UDim2.fromScale(0.62, 0.5))
-	hair("HairTop", UDim2.new(0, 2, 0.20, 0), UDim2.fromScale(0.5, 0.38))
-	hair("HairBottom", UDim2.new(0, 2, 0.20, 0), UDim2.fromScale(0.5, 0.62))
-
-	for i = 1, 3 do
-		hair(`Tick{i}`, UDim2.new(0, 14, 0, 2), UDim2.fromScale(0.5, 0.5 + i * 0.045))
+	local hairs = {
+		left = hair("HairLeft"),
+		right = hair("HairRight"),
+		up = hair("HairUp"),
+		down = hair("HairDown"),
+	}
+	local ticks = {}
+	for index = 1, 3 do
+		table.insert(ticks, hair(`Tick{index}`))
 	end
 
+	--- Lays everything out from the current viewport size.
+	local function layout()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local view = camera.ViewportSize
+		local aperture = math.min(view.Y * APERTURE, view.X * 0.9)
+		local sideW = math.max(0, (view.X - aperture) / 2)
+		local sideH = math.max(0, (view.Y - aperture) / 2)
+
+		top.Size = UDim2.fromOffset(math.ceil(view.X), math.ceil(sideH) + 1)
+		top.Position = UDim2.fromOffset(0, 0)
+
+		bottom.Size = UDim2.fromOffset(math.ceil(view.X), math.ceil(sideH) + 1)
+		bottom.Position = UDim2.fromOffset(0, math.floor(view.Y - sideH))
+
+		left.Size = UDim2.fromOffset(math.ceil(sideW) + 1, math.ceil(aperture) + 2)
+		left.Position = UDim2.fromOffset(0, math.floor(sideH))
+
+		right.Size = UDim2.fromOffset(math.ceil(sideW) + 1, math.ceil(aperture) + 2)
+		right.Position = UDim2.fromOffset(math.floor(view.X - sideW), math.floor(sideH))
+
+		local half = aperture / 2
+		local filletSize = aperture * 0.46
+		local offset = half + filletSize * 0.32
+		local centres = {
+			Vector2.new(-offset, -offset),
+			Vector2.new(offset, -offset),
+			Vector2.new(-offset, offset),
+			Vector2.new(offset, offset),
+		}
+		for index, f in fillets do
+			f.Size = UDim2.fromOffset(math.ceil(filletSize), math.ceil(filletSize))
+			f.Position = UDim2.new(0.5, centres[index].X, 0.5, centres[index].Y)
+		end
+
+		ring.Size = UDim2.fromOffset(math.ceil(aperture), math.ceil(aperture))
+
+		local gap = aperture * 0.055
+		local arm = aperture * 0.30
+		hairs.left.Size = UDim2.fromOffset(math.ceil(arm), 2)
+		hairs.left.Position = UDim2.new(0.5, -(gap + arm / 2), 0.5, 0)
+		hairs.right.Size = UDim2.fromOffset(math.ceil(arm), 2)
+		hairs.right.Position = UDim2.new(0.5, gap + arm / 2, 0.5, 0)
+		hairs.up.Size = UDim2.fromOffset(2, math.ceil(arm))
+		hairs.up.Position = UDim2.new(0.5, 0, 0.5, -(gap + arm / 2))
+		hairs.down.Size = UDim2.fromOffset(2, math.ceil(arm))
+		hairs.down.Position = UDim2.new(0.5, 0, 0.5, gap + arm / 2)
+
+		for index, t in ticks do
+			t.Size = UDim2.fromOffset(12, 2)
+			t.Position = UDim2.new(0.5, 0, 0.5, math.floor(gap + arm + index * aperture * 0.055))
+		end
+	end
+
+	layout()
 	local camera = workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layout)
+	end
+
 	return setmetatable({
 		active = false,
 		_gui = gui,
 		_baseFov = if camera then camera.FieldOfView else 70,
-		_baseSensitivity = UserInputService.MouseDeltaSensitivity,
 	}, Scope)
 end
 
@@ -169,15 +202,11 @@ function Scope.set(
 	if active and stats then
 		self._gui.Enabled = true
 		UserInputService.MouseDeltaSensitivity = Config.Camera.Sensitivity * stats.Sensitivity
-		TweenService:Create(camera, TweenInfo.new(0.16), {
-			FieldOfView = stats.FieldOfView,
-		}):Play()
+		TweenService:Create(camera, TweenInfo.new(0.16), { FieldOfView = stats.FieldOfView }):Play()
 	else
 		self._gui.Enabled = false
 		UserInputService.MouseDeltaSensitivity = Config.Camera.Sensitivity
-		TweenService:Create(camera, TweenInfo.new(0.14), {
-			FieldOfView = self._baseFov,
-		}):Play()
+		TweenService:Create(camera, TweenInfo.new(0.14), { FieldOfView = self._baseFov }):Play()
 	end
 end
 
