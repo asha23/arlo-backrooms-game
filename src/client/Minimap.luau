@@ -16,13 +16,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-
-local UserInputService = game:GetService("UserInputService")
+local Device = require(ReplicatedStorage.Shared.Device)
 
 local SETTINGS = Config.Minimap
 
 -- Smaller on phones, where 190px is a large fraction of the screen.
-local TOUCH = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local TOUCH = Device.isTouch()
 
 local player = Players.LocalPlayer
 

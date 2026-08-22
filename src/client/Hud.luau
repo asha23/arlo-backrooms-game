@@ -6,13 +6,13 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Device = require(ReplicatedStorage.Shared.Device)
 
 -- On touch devices the bottom-left is Roblox's movement thumbstick and the
 -- bottom-right is our fire button, so the readouts move to the top.
-local TOUCH_LAYOUT = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local TOUCH_LAYOUT = Device.isTouch()
 
 local Hud = {}
 Hud.__index = Hud

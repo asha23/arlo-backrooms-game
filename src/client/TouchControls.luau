@@ -28,6 +28,9 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Device = require(ReplicatedStorage.Shared.Device)
+
 local TouchControls = {}
 
 type Handlers = {
@@ -38,7 +41,6 @@ type Handlers = {
 	onFlashlight: () -> (),
 	onAimDown: () -> (),
 	onAimUp: () -> (),
-	onJump: () -> (),
 }
 
 local ACTIVE = Color3.fromRGB(232, 126, 34)
@@ -208,34 +210,35 @@ local function makeToggle(
 end
 
 --[[
-	Roblox's own jump button is hidden, and we draw our own.
+	Roblox's own jump button stays — we lay out around it.
 
-	Moving theirs meant reaching into PlayerGui.TouchGui.TouchControlFrame by
-	name and re-anchoring an instance the PlayerModule owns. If any of those
-	names is wrong, or it rebuilds the button on respawn, the lookup silently
-	returns nothing and the button stays exactly where it was — sitting under
-	FIRE. Hiding it and drawing our own is deterministic: our button is in our
-	layout, so it cannot overlap anything we placed.
+	It is drawn bottom-right, which is where FIRE wants to be. Rather than
+	guess where it is, or move an instance the PlayerModule owns, we find it
+	and MEASURE it: our right-hand cluster then starts left of its edge. If it
+	moves, or Roblox changes the layout, our buttons follow rather than
+	silently landing on top of it.
+
+	Searched across the whole of PlayerGui by name, because it is not reliably
+	a direct child of any one frame.
 ]]
-local function hideRobloxJump()
+local function findRobloxJump(): GuiObject?
 	local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
-	local touchGui = playerGui and playerGui:FindFirstChild("TouchGui")
-	local frame = touchGui and touchGui:FindFirstChild("TouchControlFrame")
-	if not frame then
-		return
+	if not playerGui then
+		return nil
 	end
-	for _, child in frame:GetChildren() do
-		if child:IsA("GuiObject") and child.Name:match("Jump") then
-			child.Visible = false
+	for _, item in playerGui:GetDescendants() do
+		if item:IsA("GuiObject") and item.Name == "JumpButton" and item.Visible then
+			return item
 		end
 	end
+	return nil
 end
 
 --- Builds the touch UI. Returns false (and builds nothing) on non-touch devices.
 function TouchControls.start(handlers: Handlers): boolean
 	-- A device with a mouse does not need these, even if it also has a
 	-- touchscreen; the keyboard bindings already cover it.
-	if not UserInputService.TouchEnabled or UserInputService.MouseEnabled then
+	if not Device.isTouch() then
 		return false
 	end
 
@@ -254,7 +257,6 @@ function TouchControls.start(handlers: Handlers): boolean
 
 	local fire = makeHoldZone(gui, "Fire", "FIRE", handlers.onFireDown, handlers.onFireUp)
 	local aim = makeHoldZone(gui, "Aim", "AIM", handlers.onAimDown, handlers.onAimUp)
-	local jump = makeTapButton(gui, "Jump", "JUMP", handlers.onJump)
 	local reload = makeTapButton(gui, "Reload", "RELOAD", handlers.onReload)
 	local light = makeTapButton(gui, "Flashlight", "LIGHT", handlers.onFlashlight)
 	local sprint = makeToggle(gui, "Sprint", "SPRINT", handlers.onSprintChanged)
@@ -293,34 +295,37 @@ function TouchControls.start(handlers: Handlers): boolean
 		]]
 		local floorY = edge
 
+		--[[
+			How far in from the right our cluster has to start.
+
+			Measured from Roblox's own jump button rather than assumed: we take
+			its left edge, in this ScreenGui's own coordinates, and back off by
+			a gap. If it is not there yet — the PlayerModule builds it
+			asynchronously — we fall back to the normal edge margin and the next
+			layout pass corrects it.
+		]]
+		local rightReserve = edge
+		local robloxJump = findRobloxJump()
+		if robloxJump then
+			local guiRight = gui.AbsolutePosition.X + gui.AbsoluteSize.X
+			local jumpLeft = robloxJump.AbsolutePosition.X
+			rightReserve = math.max(edge, math.floor(guiRight - jumpLeft) + gap)
+		end
+
 		local fireSize = math.floor(112 * s)
 		local aimSize = math.floor(78 * s)
-		local jumpSize = math.floor(78 * s)
 		local tapW, tapH = math.floor(92 * s), math.floor(58 * s)
 
-		-- Bottom row, right to left: FIRE, AIM, JUMP.
+		-- Bottom row, right to left: FIRE then AIM, both starting left of
+		-- Roblox's jump button.
 		fire.Size = UDim2.fromOffset(fireSize, fireSize)
-		fire.Position = UDim2.new(1, -edge, 1, -floorY)
+		fire.Position = UDim2.new(1, -rightReserve, 1, -floorY)
 
 		aim.Size = UDim2.fromOffset(aimSize, aimSize)
-		aim.Position = UDim2.new(1, -(edge + fireSize + gap), 1, -floorY)
+		aim.Position = UDim2.new(1, -(rightReserve + fireSize + gap), 1, -floorY)
 
 		reload.Size = UDim2.fromOffset(tapW, tapH)
-		reload.Position = UDim2.new(1, -edge, 1, -(floorY + fireSize + gap))
-
-		--[[
-			Ours, third in the row after FIRE and AIM.
-
-			Roblox's own jump button is drawn in the bottom-right corner, which
-			is where FIRE is. Rather than reach into PlayerGui.TouchGui by name
-			and re-anchor an instance the PlayerModule owns — which silently
-			does nothing if any of those names is wrong, leaving the button
-			under FIRE — we hide theirs and place our own. Hidden every pass,
-			since the PlayerModule recreates it on respawn.
-		]]
-		hideRobloxJump()
-		jump.Size = UDim2.fromOffset(jumpSize, jumpSize)
-		jump.Position = UDim2.new(1, -(edge + fireSize + gap + aimSize + gap), 1, -floorY)
+		reload.Position = UDim2.new(1, -rightReserve, 1, -(floorY + fireSize + gap))
 
 		-- Left cluster, positioned by its bottom-right corner from the left
 		-- edge, and lifted clear of Roblox's movement thumbstick.

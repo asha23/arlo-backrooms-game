@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Device = require(ReplicatedStorage.Shared.Device)
 
 local SETTINGS = Config.Camera
 
@@ -64,7 +65,7 @@ function CameraController.start()
 
 	-- On touch devices Roblox supplies its own drag-to-look camera, so we leave
 	-- the mouse lock alone there.
-	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+	if Device.isTouch() then
 		player.CameraMode = Enum.CameraMode.Classic
 		player.CameraMinZoomDistance = 0.5
 		player.CameraMaxZoomDistance = 0.5
