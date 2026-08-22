@@ -42,7 +42,13 @@ local function watchForFalling(character: Model, humanoid: Humanoid)
 end
 
 local function onCharacterAdded(character: Model)
-	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	-- Bounded: a character without a Humanoid is a broken character, and this
+	-- thread hanging forever would take the fall-rescue watcher with it.
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid then
+		warn(`[Player] {character.Name} spawned without a Humanoid`)
+		return
+	end
 	-- MaxHealth first: setting Health above the current max is clamped.
 	humanoid.MaxHealth = Config.Player.MaxHealth
 	humanoid.Health = Config.Player.MaxHealth

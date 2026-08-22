@@ -30,6 +30,18 @@ local names: DataStore? = nil
 local cached: { { name: string, score: number } } = {}
 local available = false
 
+--[[
+	Set when Studio refuses API access.
+
+	In production a failed call means throttling, which is transient and worth
+	retrying. In Studio it means the setting is off, which will not change while
+	the session runs — and retrying on every leave, every escape and every 90
+	seconds just fills the output with the same warning, burying anything
+	useful. So: give up in Studio after the first refusal, keep trying in a
+	live game.
+]]
+local studioBlocked = false
+
 local function connect(): boolean
 	local ok = pcall(function()
 		scores = DataStoreService:GetOrderedDataStore("HighScores_v1")
@@ -49,11 +61,20 @@ local function refresh()
 		return
 	end
 
+	if studioBlocked then
+		return
+	end
+
 	local ok, result = pcall(function()
 		return store:GetSortedAsync(false, TOP_COUNT):GetCurrentPage()
 	end)
 	if not ok or typeof(result) ~= "table" then
-		warn("[Leaderboard] read failed; keeping the previous board")
+		if RunService:IsStudio() then
+			studioBlocked = true
+			warn("[Leaderboard] Studio API access is off; high scores disabled for this session")
+		else
+			warn("[Leaderboard] read failed; keeping the previous board")
+		end
 		return
 	end
 
@@ -78,7 +99,7 @@ end
 local function submit(player: Player)
 	local store = scores
 	local nameStore = names
-	if not store or not nameStore then
+	if not store or not nameStore or studioBlocked then
 		return
 	end
 
@@ -98,7 +119,12 @@ local function submit(player: Player)
 		end)
 	end)
 	if not ok then
-		warn(`[Leaderboard] failed to save a score for {player.Name}`)
+		if RunService:IsStudio() then
+			studioBlocked = true
+			warn("[Leaderboard] Studio API access is off; high scores disabled for this session")
+		else
+			warn(`[Leaderboard] failed to save a score for {player.Name}`)
+		end
 		return
 	end
 

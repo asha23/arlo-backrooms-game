@@ -287,10 +287,18 @@ function FlashlightService.start()
 		setOn(player, not torch.on)
 	end)
 
-	-- The torch is welded to the character, so it dies with it. Re-attach on
-	-- respawn if there is still charge left, rather than making the player
-	-- find another one after every death.
-	Players.PlayerAdded:Connect(function(player)
+	--[[
+		The torch is welded to the character, so it dies with it. Re-attach on
+		respawn if there is still charge left, rather than making the player
+		find another one after every death.
+
+		Existing players are handled as well as new ones. In Studio the player
+		is usually already present by the time server scripts run, so
+		PlayerAdded has already fired and a PlayerAdded-only connection is never
+		made — leaving torch.model pointing at a destroyed instance after the
+		first death, which makes the torch appear permanently broken.
+	]]
+	local function watch(player: Player)
 		player.CharacterAdded:Connect(function()
 			local torch = torchFor(player)
 			torch.model = nil
@@ -301,7 +309,12 @@ function FlashlightService.start()
 			end
 			publish(player)
 		end)
-	end)
+	end
+
+	Players.PlayerAdded:Connect(watch)
+	for _, player in Players:GetPlayers() do
+		watch(player)
+	end
 
 	Players.PlayerRemoving:Connect(function(player)
 		torches[player] = nil
