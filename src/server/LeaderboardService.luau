@@ -107,6 +107,17 @@ local function submit(player: Player)
 	end)
 end
 
+--[[
+	Banks a player's score now.
+
+	Exposed so escaping can trigger a save. An escape is the one moment a run
+	has been completed rather than merely interrupted, and waiting up to ninety
+	seconds to record it means a crash or a disconnect in between loses it.
+]]
+function LeaderboardService.submit(player: Player)
+	submit(player)
+end
+
 function LeaderboardService.top(): { { name: string, score: number } }
 	return cached
 end

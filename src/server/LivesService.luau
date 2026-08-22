@@ -152,10 +152,10 @@ function LivesService.spawnPickups(positions: { Vector3 })
 						continue
 					end
 					SoundKit.playOnce(root, {
-						Id = Config.PickupAudio.Health.Id,
-						Pitch = 1.35,
-						Volume = 0.9,
-						Range = 45,
+						Id = SETTINGS.FanfareId,
+						Pitch = 1,
+						Volume = SETTINGS.FanfareVolume,
+						Range = 60,
 					})
 					heart:Destroy()
 					return

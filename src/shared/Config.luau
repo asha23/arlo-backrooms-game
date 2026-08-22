@@ -460,12 +460,24 @@ local Config = {
 			and they start again with a full five.
 		]]
 		Starting = 5,
-		Maximum = 5,
+		--[[
+			The cap has to sit ABOVE the starting count or the extra lives in
+			the level are uncollectable — you begin at five, grant() refuses at
+			five, and the pickup is never consumed unless you have already died.
+			Being able to bank a couple is also what makes detouring for one
+			worthwhile rather than something you only do after a mistake.
+		]]
+		Maximum = 8,
 		-- Extra lives scattered through the level. Capped at Maximum, so
 		-- collecting one at full lives leaves it on the floor for someone else.
 		PickupCount = 5,
 		PickupRadius = 7,
 		Color = Color3.fromRGB(255, 96, 120),
+		-- Victory Fanfare Sting (APMOfficial), verified against the asset API.
+		-- An extra life is the best thing that can happen to you in a run, and
+		-- it should sound like it.
+		FanfareId = "rbxassetid://1836473422",
+		FanfareVolume = 0.65,
 	},
 
 	Respawn = {

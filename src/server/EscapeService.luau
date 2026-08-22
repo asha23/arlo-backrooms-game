@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 local ScoreService = require(script.Parent.ScoreService)
 
 local SETTINGS = Config.Escape
@@ -107,6 +108,10 @@ local function onEscape(player: Player)
 
 	local count = ScoreService.recordFor(player).escapes
 	Remotes.Escaped():FireClient(player, SETTINGS.BonusScore, SETTINGS.BonusCash, count)
+
+	-- Bank it immediately: a completed run should not be waiting on the next
+	-- periodic save to survive a disconnect.
+	task.spawn(LeaderboardService.submit, player)
 
 	task.delay(SETTINGS.CelebrationSeconds, function()
 		escaping[player] = nil
