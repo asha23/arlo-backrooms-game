@@ -776,11 +776,16 @@ local Config = {
 		-- where you look, which is what makes a shooter feel like a shooter.
 		-- Set false to fall back to Roblox's third-person orbit camera.
 		FirstPerson = true,
-		-- Multiplier on raw mouse/trackpad movement. Trackpads generally want
-		-- a higher value than a mouse.
-		Sensitivity = 1,
-		-- Touch look sensitivity, in degrees of turn per pixel dragged.
-		TouchSensitivity = 0.28,
+		--[[
+			Multiplier on raw mouse/trackpad movement, reduced 15% from 1.0.
+
+			This is the base every other aim figure is measured against: the
+			sniper's Scope.Sensitivity is a multiplier ON this, so the scoped
+			view inherits the reduction rather than needing its own.
+		]]
+		Sensitivity = 0.85,
+		-- Touch look sensitivity, also down 15%.
+		TouchSensitivity = 0.238,
 	},
 
 	Flashlight = {
