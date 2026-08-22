@@ -111,6 +111,15 @@ local function buildRig(variant: Variant): Model
 
 	head.Material = Enum.Material.SmoothPlastic
 	head.Reflectance = build.HeadReflectance
+	--[[
+		Marks anything that counts as a head for the headshot check.
+
+		An attribute rather than a name test, because the eyes sit proudly over
+		the face and a shot aimed squarely between them hits an "Eye" part, not
+		"Head" — so the most deliberate headshot in the game would have scored
+		as a body shot.
+	]]
+	head:SetAttribute("IsHead", true)
 
 	--[[
 		Eyes, and nothing else — no mouth, no nose. Two marks on an otherwise
@@ -138,6 +147,7 @@ local function buildRig(variant: Variant): Model
 		)
 		eye.CanCollide = false
 		eye.Massless = true
+		eye:SetAttribute("IsHead", true)
 		eye.Material = if glowing then Enum.Material.Neon else Enum.Material.SmoothPlastic
 
 		-- Front face of the head is -Z.

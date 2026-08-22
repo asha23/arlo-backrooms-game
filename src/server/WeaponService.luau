@@ -141,8 +141,33 @@ local function resolveShot(
 		return
 	end
 
-	local isHeadshot = hitPart.Name == "Head"
-	local damage = stats.Damage * (if isHeadshot then stats.HeadshotMultiplier else 1)
+	--[[
+		Head parts carry an IsHead attribute rather than being matched by name.
+		The entity's eyes stand proud of the face, so a shot placed exactly
+		between them hits a part named "Eye" — testing the name alone meant the
+		most deliberate headshot available scored as a body shot. The name test
+		remains as a fallback for anything without the attribute.
+	]]
+	local isHeadshot = hitPart:GetAttribute("IsHead") == true or hitPart.Name == "Head"
+
+	--[[
+		Lethality is a rule about hits, not about damage numbers. See
+		Config.Combat: a headshot kills outright and five body shots kill,
+		whatever you are holding and whatever you hit. Body damage is derived
+		from the target's own MaxHealth so it holds for any variant.
+	]]
+	local combat = Config.Combat
+	local damage: number
+	if combat.UniformLethality then
+		if isHeadshot and combat.HeadshotIsLethal then
+			damage = humanoid.MaxHealth
+		else
+			damage = humanoid.MaxHealth / combat.BodyShotsToKill
+		end
+	else
+		damage = stats.Damage * (if isHeadshot then stats.HeadshotMultiplier else 1)
+	end
+
 	humanoid:TakeDamage(damage)
 
 	local killed = humanoid.Health <= 0

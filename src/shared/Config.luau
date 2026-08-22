@@ -418,6 +418,29 @@ local Config = {
 		Color = Color3.fromRGB(120, 235, 130),
 	},
 
+	Combat = {
+		--[[
+			How much punishment an entity takes, expressed in HITS rather than
+			in damage.
+
+			Per-weapon damage numbers made "how many shots does this take?"
+			depend on which gun you happened to find, and on which variant you
+			happened to meet — a Slender took twice as many rounds as a
+			Wanderer for no reason the player could see. These two rules apply
+			to every weapon and every variant, so the answer is always the same
+			and always legible.
+
+			Damage per body shot is derived from the target's own MaxHealth, so
+			this holds however a variant is statted.
+
+			Set UniformLethality false to go back to the per-weapon Damage and
+			HeadshotMultiplier values in WeaponConfig.
+		]]
+		UniformLethality = true,
+		HeadshotIsLethal = true,
+		BodyShotsToKill = 5,
+	},
+
 	Score = {
 		-- Multiplier applied to a kill's value when the killing shot was a
 		-- headshot. Kill value itself is per-variant, in Entity.Variants.
@@ -498,6 +521,29 @@ local Config = {
 			-- with hundreds of collectables.
 			Lifetime = 60,
 			Color = Color3.fromRGB(120, 235, 130),
+		},
+
+		Combat = {
+			--[[
+			How much punishment an entity takes, expressed in HITS rather than
+			in damage.
+
+			Per-weapon damage numbers made "how many shots does this take?"
+			depend on which gun you happened to find, and on which variant you
+			happened to meet — a Slender took twice as many rounds as a
+			Wanderer for no reason the player could see. These two rules apply
+			to every weapon and every variant, so the answer is always the same
+			and always legible.
+
+			Damage per body shot is derived from the target's own MaxHealth, so
+			this holds however a variant is statted.
+
+			Set UniformLethality false to go back to the per-weapon Damage and
+			HeadshotMultiplier values in WeaponConfig.
+		]]
+			UniformLethality = true,
+			HeadshotIsLethal = true,
+			BodyShotsToKill = 5,
 		},
 
 		Score = {
