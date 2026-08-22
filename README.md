@@ -165,6 +165,18 @@ leaves it for someone else.
 Recoil is applied at `RenderPriority.Camera + 1`, after Roblox's camera scripts
 have positioned the camera — anything earlier is simply overwritten.
 
+## High scores
+
+All-time top five, kept in an `OrderedDataStore` and shown on the loading
+screen. Only a player's best score is ever stored, and it is banked when they
+escape, when they leave, on server shutdown, and every 90 seconds.
+
+**Scores will not save in Studio until you enable it:** File → Experience
+Settings → Security → **Enable Studio Access to API Services**. The place has to
+be published first. Be aware that Studio then reads and writes the *same*
+datastore as the live game, so test scores set in Studio will appear on the real
+leaderboard once the game is public.
+
 ## Audio
 
 There are no uploaded audio assets. Everything uses `rbxasset://` paths, which
