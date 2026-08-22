@@ -50,7 +50,16 @@ local TEXT = Color3.fromRGB(240, 236, 228)
 	display still gets something sensible.
 ]]
 local REFERENCE_HEIGHT = 720
-local MIN_SCALE, MAX_SCALE = 0.8, 1.7
+--[[
+	Capped well below the raw viewport ratio.
+
+	A tablet is a much larger screen but not a much larger thumb. Scaling
+	buttons linearly with height gave a 190-pixel fire button on an iPad, which
+	is both bigger than it needs to be and — because the gaps scaled by the same
+	factor — left everything crowded against everything else. Buttons grow a
+	little on a big screen; the SPACE between them grows more.
+]]
+local MIN_SCALE, MAX_SCALE = 0.85, 1.25
 
 local function scaleFor(): number
 	local camera = workspace.CurrentCamera
