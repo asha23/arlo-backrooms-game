@@ -80,7 +80,25 @@ local Config = {
 
 		-- Applied to Lighting.Ambient at runtime, scaled by LightScale. Kept
 		-- here rather than in default.project.json so one dial reaches it.
-		BaseAmbient = Color3.fromRGB(15, 14, 12),
+		BaseAmbient = Color3.fromRGB(13, 12, 10),
+
+		--[[
+			Fixture light reach — and the single biggest cause of the level
+			being blown out.
+
+			Light accumulates additively where it overlaps. Fixtures sit every
+			three cells (27 studs), so a range of 30 meant an average of 3.2
+			lights reaching any given point: a per-light brightness of 0.6
+			became an effective 2.0, which clips the wall colour towards white
+			and is why the corridors rendered as flat lemon yellow with no
+			shadow anywhere.
+
+			At 16 studs the pools barely touch. Average lights per point drops
+			to about 0.7, corridors between fixtures fall into gloom, and the
+			level finally reads as lit rather than as glowing.
+		]]
+		FixtureLightRange = 16,
+		FixtureLightBrightness = { 0.45, 0.7 },
 
 		--[[
 			Emissive colour of the fixture panels themselves.
@@ -95,10 +113,10 @@ local Config = {
 
 			Keep these dark. They are lamps seen from below, not light sources.
 		]]
-		FixtureColor = Color3.fromRGB(112, 108, 92),
-		DeadFixtureColor = Color3.fromRGB(38, 36, 32),
-		FixtureDimColor = Color3.fromRGB(48, 46, 40),
-		SpawnFixtureColor = Color3.fromRGB(138, 133, 113),
+		FixtureColor = Color3.fromRGB(74, 71, 60),
+		DeadFixtureColor = Color3.fromRGB(28, 27, 24),
+		FixtureDimColor = Color3.fromRGB(34, 33, 29),
+		SpawnFixtureColor = Color3.fromRGB(96, 92, 78),
 		-- How often the active set is recalculated. Four times a second is
 		-- imperceptible while walking and costs almost nothing.
 		LightStreamInterval = 0.25,
@@ -128,21 +146,28 @@ local Config = {
 		DeadLightBrightness = 0,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 1.1,
-		SpawnLightRange = 34,
+		SpawnLightBrightness = 0.85,
+		SpawnLightRange = 22,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
 		-- Fabric/Concrete if you ever want the grimier look back.
-		WallColor = Color3.fromRGB(232, 126, 34),
+		--[[
+			Muted, dingy mustard rather than saturated orange. A highly
+			saturated surface clips to white the moment it is over-lit, which
+			is what turned these walls into flat lemon in the first place — the
+			colour was doing as much damage as the lights. Real Backrooms
+			wallpaper is stained and desaturated.
+		]]
+		WallColor = Color3.fromRGB(163, 138, 71),
 		WallMaterial = Enum.Material.SmoothPlastic,
-		FloorColor = Color3.fromRGB(186, 100, 26),
+		FloorColor = Color3.fromRGB(112, 94, 50),
 		FloorMaterial = Enum.Material.SmoothPlastic,
 		-- The ceiling is the same surface as the walls. It was previously a
 		-- near-white slab spanning the whole level, which read as one enormous
 		-- area light and washed everything out. Only the fixtures should look
 		-- like light sources.
-		CeilingColor = Color3.fromRGB(196, 106, 29),
+		CeilingColor = Color3.fromRGB(138, 117, 61),
 		CeilingMaterial = Enum.Material.SmoothPlastic,
 	},
 

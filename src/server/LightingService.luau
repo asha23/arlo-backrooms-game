@@ -34,6 +34,10 @@ function LightingService.start()
 	Lighting.Ambient = ambient
 	Lighting.OutdoorAmbient = ambient
 
+	-- A final global pull-down after everything else. Unlike per-light
+	-- brightness this cannot be defeated by lights overlapping each other.
+	Lighting.ExposureCompensation = -0.35
+
 	print(
 		`[Lighting] scale {LEVEL.LightScale}, ambient {math.floor(ambient.R * 255)},`
 			.. `{math.floor(ambient.G * 255)},{math.floor(ambient.B * 255)}`

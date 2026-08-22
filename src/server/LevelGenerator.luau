@@ -268,11 +268,13 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = rng:NextNumber(0.5, 0.75) * LEVEL.LightScale
-			-- Range is reach, not brightness: wide enough that every open cell
-			-- falls inside some fixture's falloff (worst case measured at 25.5
-			-- studs), while Brightness decides how bright it actually reads.
-			light.Range = 30
+			light.Brightness = rng:NextNumber(
+				LEVEL.FixtureLightBrightness[1],
+				LEVEL.FixtureLightBrightness[2]
+			) * LEVEL.LightScale
+			-- Deliberately short. See Config.Level.FixtureLightRange: overlapping
+			-- pools accumulate, and a wide range was what blew the level out.
+			light.Range = LEVEL.FixtureLightRange
 			light.Color = Color3.fromRGB(255, 247, 214)
 			--[[
 				No shadows on the corridor fixtures. Shadow-casting lights are
