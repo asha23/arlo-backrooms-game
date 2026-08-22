@@ -5,6 +5,11 @@
 ]]
 
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+-- On touch devices the bottom-left is Roblox's movement thumbstick and the
+-- bottom-right is our fire button, so the readouts move to the top.
+local TOUCH_LAYOUT = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 
 local Hud = {}
 Hud.__index = Hud
@@ -25,8 +30,13 @@ local function makeBar(parent: Instance, name: string, order: number, color: Col
 	local holder = Instance.new("Frame")
 	holder.Name = name
 	holder.Size = UDim2.fromOffset(180, 14)
-	holder.Position = UDim2.new(0, 24, 1, -24 - (order * 24))
-	holder.AnchorPoint = Vector2.new(0, 1)
+	if TOUCH_LAYOUT then
+		holder.Position = UDim2.new(0, 24, 0, 70 + (order * 22))
+		holder.AnchorPoint = Vector2.new(0, 0)
+	else
+		holder.Position = UDim2.new(0, 24, 1, -24 - (order * 24))
+		holder.AnchorPoint = Vector2.new(0, 1)
+	end
 	holder.BackgroundColor3 = Color3.fromRGB(18, 18, 16)
 	holder.BackgroundTransparency = 0.35
 	holder.BorderSizePixel = 0
@@ -101,8 +111,13 @@ function Hud.new(): Hud
 	local ammo = Instance.new("TextLabel")
 	ammo.Name = "Ammo"
 	ammo.Size = UDim2.fromOffset(280, 24)
-	ammo.Position = UDim2.new(1, -24, 1, -24)
-	ammo.AnchorPoint = Vector2.new(1, 1)
+	if TOUCH_LAYOUT then
+		ammo.Position = UDim2.new(1, -24, 0, 70)
+		ammo.AnchorPoint = Vector2.new(1, 0)
+	else
+		ammo.Position = UDim2.new(1, -24, 1, -24)
+		ammo.AnchorPoint = Vector2.new(1, 1)
+	end
 	ammo.BackgroundTransparency = 1
 	ammo.Font = Enum.Font.Code
 	ammo.TextSize = 18

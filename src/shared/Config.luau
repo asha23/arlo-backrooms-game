@@ -47,6 +47,18 @@ local Config = {
 		LightRadius = 26, -- studs; how close a light must be to count as "lit"
 	},
 
+	Camera = {
+		-- First person locks the mouse to the centre of the screen and aims
+		-- where you look, which is what makes a shooter feel like a shooter.
+		-- Set false to fall back to Roblox's third-person orbit camera.
+		FirstPerson = true,
+		-- Multiplier on raw mouse/trackpad movement. Trackpads generally want
+		-- a higher value than a mouse.
+		Sensitivity = 1,
+		-- Touch look sensitivity, in degrees of turn per pixel dragged.
+		TouchSensitivity = 0.28,
+	},
+
 	Fog = {
 		Start = 90,
 		End = 340,

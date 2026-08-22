@@ -92,16 +92,15 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 			return
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			self._triggerHeld = true
-			self:tryFire()
+			self:setTrigger(true)
 		elseif input.KeyCode == Enum.KeyCode.R then
-			Remotes.ReloadWeapon():FireServer()
+			self:requestReload()
 		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			self._triggerHeld = false
+			self:setTrigger(false)
 		end
 	end)
 
@@ -126,6 +125,23 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 	end)
 
 	return self
+end
+
+--[[
+	Trigger state, driven by whichever input source the player is using — mouse
+	button on desktop, on-screen button on touch. Keeping this a method rather
+	than a raw field is what lets both coexist without either knowing about the
+	other.
+]]
+function WeaponController.setTrigger(self: WeaponController, held: boolean)
+	self._triggerHeld = held
+	if held then
+		self:tryFire()
+	end
+end
+
+function WeaponController.requestReload(_self: WeaponController)
+	Remotes.ReloadWeapon():FireServer()
 end
 
 function WeaponController.flashHitmarker(self: WeaponController, strong: boolean)

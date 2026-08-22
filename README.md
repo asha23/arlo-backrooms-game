@@ -49,14 +49,28 @@ sanity drain rates. Start there when you want to change how the game feels.
 
 ## Controls
 
-| Input     | Action              |
-| --------- | ------------------- |
-| WASD      | Move                |
+**Desktop** — the camera is locked to first person, so the mouse aims directly
+and the crosshair always points where you're looking.
+
+| Input     | Action                |
+| --------- | --------------------- |
+| Mouse     | Aim                   |
+| WASD      | Move                  |
 | Shift     | Sprint (uses stamina) |
-| F         | Toggle flashlight   |
-| LMB       | Fire                |
-| R         | Reload              |
-| 1/2/3     | Equip from backpack |
+| F         | Toggle flashlight     |
+| LMB       | Fire                  |
+| R         | Reload                |
+| 1/2/3     | Equip from backpack   |
+
+**Touch** — Roblox supplies the movement thumbstick, the jump button and
+drag-to-look; we add FIRE (hold to keep firing), RELOAD, SPRINT (a toggle) and
+LIGHT. The HUD moves to the top of the screen so it clears the thumbstick and
+the fire button. All four drive the same methods the keyboard bindings do, so
+touch is never a second implementation of the game's rules.
+
+Set `Config.Camera.FirstPerson = false` for Roblox's third-person orbit camera,
+and `Config.Camera.Sensitivity` to taste — trackpads generally want a higher
+value than a mouse.
 
 ## What's implemented
 

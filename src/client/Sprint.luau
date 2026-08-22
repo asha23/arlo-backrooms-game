@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Hold Shift to sprint until stamina runs out. Stamina regenerates whenever
+	Hold Shift (or the on-screen sprint button) to sprint until stamina runs out. Stamina regenerates whenever
 	you're not sprinting, so the pacing is "run between rooms, not through them".
 ]]
 
@@ -18,6 +18,9 @@ export type Sprint = typeof(setmetatable(
 	{} :: {
 		stamina: number,
 		sprinting: boolean,
+		-- Set by the on-screen sprint button on touch devices; ORed with Shift
+		-- so both input sources work on a device that has both.
+		requested: boolean,
 		_humanoid: Humanoid?,
 	},
 	Sprint
@@ -27,6 +30,7 @@ function Sprint.new(): Sprint
 	return setmetatable({
 		stamina = SETTINGS.MaxStamina,
 		sprinting = false,
+		requested = false,
 		_humanoid = nil,
 	}, Sprint)
 end
@@ -46,7 +50,8 @@ function Sprint.update(self: Sprint, deltaTime: number)
 		return
 	end
 
-	local wantsToSprint = isHoldingShift() and humanoid.MoveDirection.Magnitude > 0
+	local held = isHoldingShift() or self.requested
+	local wantsToSprint = held and humanoid.MoveDirection.Magnitude > 0
 	if self.sprinting then
 		-- Keep sprinting until stamina is fully spent.
 		self.sprinting = wantsToSprint and self.stamina > 0

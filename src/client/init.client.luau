@@ -7,11 +7,13 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local CameraController = require(script.CameraController)
 local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
 local Sanity = require(script.Sanity)
 local Sprint = require(script.Sprint)
+local TouchControls = require(script.TouchControls)
 local WeaponController = require(script.WeaponController)
 
 local player = Players.LocalPlayer
@@ -33,7 +35,28 @@ if player.Character then
 	onCharacterAdded(player.Character)
 end
 
+CameraController.start()
 LightFlicker.start()
+
+-- Touch devices get on-screen action buttons wired to the same methods the
+-- keyboard and mouse bindings use.
+TouchControls.start({
+	onFireDown = function()
+		weapons:setTrigger(true)
+	end,
+	onFireUp = function()
+		weapons:setTrigger(false)
+	end,
+	onReload = function()
+		weapons:requestReload()
+	end,
+	onSprintChanged = function(active)
+		sprint.requested = active
+	end,
+	onFlashlight = function()
+		flashlight:toggle()
+	end,
+})
 
 RunService.RenderStepped:Connect(function(deltaTime)
 	sprint:update(deltaTime)
