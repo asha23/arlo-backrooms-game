@@ -81,6 +81,8 @@ function Hud.new(): Hud
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "BackroomsHud"
+	-- Clear of notches, rounded corners and the home indicator on every device.
+	gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 	gui.Parent = playerGui

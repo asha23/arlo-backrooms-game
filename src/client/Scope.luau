@@ -53,6 +53,12 @@ function Scope.new(): Scope
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Scope"
+	--[[
+		Deliberately NOT DeviceSafeInsets. This is a full-bleed cover, and
+		respecting the safe area would leave the notch and the rounded corners
+		showing the game through gaps in it.
+	]]
+	gui.ScreenInsets = Enum.ScreenInsets.None
 	gui.IgnoreGuiInset = true
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 5

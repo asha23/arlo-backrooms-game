@@ -42,6 +42,12 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "LoadingScreen"
+--[[
+	Deliberately NOT DeviceSafeInsets. This is a full-bleed cover, and
+	respecting the safe area would leave the notch and the rounded corners
+	showing the level through gaps in it.
+]]
+gui.ScreenInsets = Enum.ScreenInsets.None
 gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 100

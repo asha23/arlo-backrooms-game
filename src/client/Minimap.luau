@@ -139,12 +139,25 @@ function Minimap.start()
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Minimap"
+	-- Clear of notches, rounded corners and the home indicator on every device.
+	gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = false
 	gui.DisplayOrder = 3
 	gui.Parent = playerGui
 
-	local size = if TOUCH then math.floor(SETTINGS.Size * 0.72) else SETTINGS.Size
+	--[[
+		Scaled to the device rather than a fixed pixel figure. A 190px radar is
+		a reasonable corner of a desktop monitor and a third of a phone screen,
+		so touch gets a smaller base and everything is then scaled against the
+		viewport height.
+	]]
+	local startCamera = workspace.CurrentCamera
+	local viewportY = if startCamera then startCamera.ViewportSize.Y else 720
+	local deviceScale = math.clamp(viewportY / 720, 0.8, 1.6)
+	-- Only touch scales: a desktop window is already a known quantity and the
+	-- configured figure is chosen for it.
+	local size = if TOUCH then math.floor(SETTINGS.Size * 0.62 * deviceScale) else SETTINGS.Size
 	local frame = Instance.new("Frame")
 	frame.Name = "Radar"
 	frame.Size = UDim2.fromOffset(size, size)

@@ -85,11 +85,27 @@ light brightness, weapon feel, entity aggression, spawn counts. Start there.
 | 1–4              | Equip from backpack             |
 
 **Touch** — Roblox supplies the thumbstick, jump and drag-to-look; we add FIRE,
-AIM, RELOAD, SPRINT and LIGHT. FIRE also respawns you from the death screen:
-touch buttons set `gameProcessedEvent`, so a tap on FIRE never reaches the global
-input handler, and without that a mobile player would have to find a bare patch
-of screen to tap. The HUD rearranges on touch to clear the thumbstick, the fire
-buttons and the radar.
+AIM, RELOAD, SPRINT and LIGHT. FIRE also respawns you from the death screen,
+since a mobile player would otherwise have to find a bare patch of screen to tap.
+
+Two decisions here follow mobile-shooter convention rather than being the obvious
+implementation, and are worth not undoing:
+
+- **FIRE and AIM are not buttons.** A `GuiButton` consumes the touch that starts
+  on it, and Roblox drives the look camera from drags on the right of the screen
+  — so a fire *button* there means you cannot aim while shooting, which every
+  mobile shooter lets you do. They are non-interactive Frames with touches
+  matched against their rectangle, so the touch is never consumed and the same
+  thumb both fires and turns.
+- **SPRINT and LIGHT sit on the left**, by the thumbstick. On the right they
+  would crowd the area that has to stay clear for looking.
+
+Everything is sized against viewport height rather than in fixed pixels (a
+comfortable phone button is a postage stamp on a tablet), re-laid out when the
+viewport changes, and the HUD, radar and controls use
+`ScreenInsets.DeviceSafeInsets` to clear notches and home indicators. The scope
+and loading screen deliberately use `None`, since they are full-bleed covers and
+respecting the safe area would leave the game showing through at the corners.
 
 Sensitivity lives in `Config.Camera`. Note that `Scope.Sensitivity` is a
 *multiplier* on the base, so lowering the base slows the scope too.
