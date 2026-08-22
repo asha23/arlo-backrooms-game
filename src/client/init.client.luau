@@ -115,6 +115,17 @@ Remotes.ScoreChanged().OnClientEvent:Connect(function(score, kills, headshots, c
 	hud:setScore(score, kills, headshots, cash, escapes)
 end)
 
+Remotes.LivesChanged().OnClientEvent:Connect(function(remaining)
+	hud:setLives(remaining)
+end)
+
+Remotes.GameOver().OnClientEvent:Connect(function()
+	-- Same state as dying: any fire button, or any tap, plays again.
+	awaitingRespawn = true
+	sprint.locked = true
+	hud:showGameOver()
+end)
+
 Remotes.Escaped().OnClientEvent:Connect(function(bonusScore, bonusCash)
 	hud:showEscape(bonusScore, bonusCash)
 end)

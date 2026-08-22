@@ -168,8 +168,15 @@ local Config = {
 			values, which is what makes the entrance somewhere you can get your
 			bearings before walking into the dark.
 		]]
-		SpawnLightBrightness = 2.6,
-		SpawnLightRange = 34,
+		--[[
+			Barely above the corridor fixtures on purpose. The spawn room is lit
+			by having MORE fixtures over a wider radius, not brighter ones — a
+			single bright lamp blows out the wall it is nearest and leaves the
+			rest of the room dark, which is how this ended up glaring the last
+			time it was raised.
+		]]
+		SpawnLightBrightness = 0.85,
+		SpawnLightRange = 22,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to
@@ -368,31 +375,36 @@ local Config = {
 			have proper audio.
 		]]
 		Sounds = {
-			-- Constant low drone that gives the thing away before you see it.
+			-- METALLIC DRONE 03 (APMOfficial). A constant low drone welded to
+			-- the thing itself, so it is audible round a corner before it is
+			-- visible — spatialised, so the direction is real rather than a
+			-- guess.
 			Drone = {
-				Id = "",
-				Pitch = 0.28,
+				Id = "rbxassetid://9043360237",
+				Pitch = 0.55,
 				Volume = 0.55,
 				Range = 70,
 			},
 			-- Occasional vocalisation while it wanders.
+			-- Creature Roar Growl 1 (ProSoundEffects), dragged well down.
 			Idle = {
-				Id = "",
-				Pitch = 0.42,
+				Id = "rbxassetid://9113980319",
+				Pitch = 0.45,
 				Volume = 0.7,
 				Range = 85,
 			},
 			-- Fires once, the moment it spots you.
+			-- The moment it sees you. Louder and higher than the idle growl.
 			Alert = {
-				Id = "",
-				Pitch = 0.5,
+				Id = "rbxassetid://9113980507",
+				Pitch = 0.7,
 				Volume = 1,
 				Range = 120,
 			},
 			-- Rhythmic scrape while chasing.
 			Chase = {
-				Id = "",
-				Pitch = 0.55,
+				Id = "rbxassetid://9113980319",
+				Pitch = 0.85,
 				Volume = 0.8,
 				Range = 95,
 			},
@@ -409,7 +421,9 @@ local Config = {
 			related; the beating between them is what makes it unpleasant.
 		]]
 		DeathScream = {
-			Id = "",
+			-- HORROR SCREAM 07 (APMOfficial). Layered and pitch-slid by
+			-- EntitySounds into something that stops sounding like a voice.
+			Id = "rbxassetid://9043345732",
 			Range = 220,
 			-- StartPitch -> EndPitch over SlideTime, per layer.
 			Layers = {
@@ -423,6 +437,24 @@ local Config = {
 		-- Seconds between idle vocalisations, randomised in this range.
 		IdleSoundGap = { 7, 19 },
 		ChaseSoundGap = { 1.6, 3.2 },
+	},
+
+	Lives = {
+		--[[
+			Five lives, then game over.
+
+			Death costs something now, which is what makes the medkits and the
+			flashlight worth detouring for. Running out resets the run rather
+			than ejecting the player: the score is banked, the board is shown,
+			and they start again with a full five.
+		]]
+		Starting = 5,
+		Maximum = 5,
+		-- Extra lives scattered through the level. Capped at Maximum, so
+		-- collecting one at full lives leaves it on the floor for someone else.
+		PickupCount = 5,
+		PickupRadius = 7,
+		Color = Color3.fromRGB(255, 96, 120),
 	},
 
 	Respawn = {
@@ -552,7 +584,8 @@ local Config = {
 	PickupAudio = {
 		-- A magazine seating home when you collect a weapon.
 		Weapon = {
-			Id = "",
+			-- Ammo Magazine 1 (ProSoundEffects).
+			Id = "rbxassetid://9113104176",
 			Pitch = 0.75,
 			Volume = 1,
 			Range = 45,
@@ -560,13 +593,31 @@ local Config = {
 		-- Second click a beat later, so it reads as a magazine rather than a
 		-- light switch.
 		WeaponSecondClick = {
-			Id = "",
+			Id = "rbxassetid://9113104176",
 			Pitch = 1.1,
 			Volume = 0.8,
 			Range = 45,
 			Delay = 0.11,
 		},
 		-- Bright ascending sparkle for health.
+		Lives = {
+			--[[
+			Five lives, then game over.
+
+			Death costs something now, which is what makes the medkits and the
+			flashlight worth detouring for. Running out resets the run rather
+			than ejecting the player: the score is banked, the board is shown,
+			and they start again with a full five.
+		]]
+			Starting = 5,
+			Maximum = 5,
+			-- Extra lives scattered through the level. Capped at Maximum, so
+			-- collecting one at full lives leaves it on the floor for someone else.
+			PickupCount = 5,
+			PickupRadius = 7,
+			Color = Color3.fromRGB(255, 96, 120),
+		},
+
 		Respawn = {
 			-- Death is not instant-restart: you sit on the death screen until you
 			-- choose to go again, then get the same count-in as the match start so
@@ -675,7 +726,8 @@ local Config = {
 		},
 
 		Health = {
-			Id = "",
+			-- BASSBEND-Down 05 (APMOfficial), pitched up into a chime.
+			Id = "rbxassetid://9043357191",
 			Pitch = 1.5,
 			Volume = 0.9,
 			Range = 45,
@@ -689,6 +741,11 @@ local Config = {
 	},
 
 	WeaponAudio = {
+		-- Gun Single Shots 11 (ProSoundEffects). Pitched per weapon.
+		FireSoundId = "rbxassetid://9114729252",
+		-- Machine Gun Battle 5 (ProSoundEffects), for the automatic weapon.
+		AutoFireSoundId = "rbxassetid://9116353775",
+
 		--[[
 			Verified against Roblox's asset API before use: id 9125402735,
 			"Boom Impact Deep Distant Thumping Hits", by ProSoundEffects —
@@ -696,11 +753,11 @@ local Config = {
 			impact rather than a purpose-made gunshot, but pitched per weapon it
 			reads as one, and it is known to exist rather than assumed to.
 		]]
-		FireSoundId = "rbxassetid://9125402735",
 
 		-- Dry fire: a bare mechanical click so an empty magazine is instantly
 		-- distinguishable from the game simply not registering the input.
-		DryFireId = "",
+		-- Ammo Magazine 1 (ProSoundEffects), pitched up to read as a dry click.
+		DryFireId = "rbxassetid://9113104176",
 		DryFirePitch = 1.6,
 		DryFireVolume = 0.55,
 		-- Minimum gap between clicks, so holding the trigger on an empty gun
@@ -731,6 +788,18 @@ local Config = {
 		Enabled = true,
 
 		--[[
+			Every id in this file was checked against Roblox's asset API before
+			being used: confirmed to exist, confirmed to be type 3 (Audio), and
+			confirmed to belong to ProSoundEffects or APMOfficial — Roblox's own
+			licensed libraries, which are free to use in any experience.
+
+			That check matters. The previous set were rbxasset:// paths assumed
+			to ship with the client; they did not resolve, every one became a
+			hanging HTTP request, and a burst weapon firing ten a second took
+			Studio down. Nothing goes in here unverified again.
+		]]
+
+		--[[
 			Adding your own sounds
 			----------------------
 			In Studio: View -> Toolbox -> Audio, search, then right-click a
@@ -759,7 +828,8 @@ local Config = {
 		MusicId = "",
 		MusicVolume = 0.5,
 
-		DroneId = "",
+		-- DARK DRONE 13 (APMOfficial).
+		DroneId = "rbxassetid://9043359885",
 		-- Pitch and base volume for each layer of the bed.
 		DroneLayers = {
 			{ Pitch = 0.18, Volume = 0.34 },
@@ -772,13 +842,29 @@ local Config = {
 
 		-- Occasional distant noises, so the level isn't only a flat drone.
 		StingerIds = {
-			"",
-			"",
-			"",
+			-- BASSBEND-Down 05 and METALLIC DRONE 03 (APMOfficial).
+			"rbxassetid://9043357191",
+			"rbxassetid://9043360237",
 		},
 		StingerGap = { 18, 48 },
 		StingerVolume = 0.3,
 		StingerPitch = { 0.3, 0.65 },
+
+		--[[
+			Proximity heartbeat.
+
+			The entities already carry their own drone, but a drone tells you
+			something is there without telling you how much trouble you are in.
+			The heartbeat is tied to the distance of the NEAREST entity and
+			speeds up as it closes, which turns "something is nearby" into
+			"it is nearly on you" without a single word of UI.
+		]]
+		HeartbeatId = "rbxassetid://9043365727",
+		-- Starts at this distance and is at full intensity when touching.
+		HeartbeatRange = 55,
+		HeartbeatVolume = 0.55,
+		-- Playback speed at the far edge of the range and right on top of you.
+		HeartbeatPitch = { 0.75, 1.5 },
 	},
 
 	Camera = {

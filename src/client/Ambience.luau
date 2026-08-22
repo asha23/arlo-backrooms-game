@@ -12,6 +12,7 @@
 	Point `Config.Ambience.MusicId` at a real track and that plays instead.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
@@ -109,6 +110,67 @@ local function startStingers(parent: Instance)
 	end)
 end
 
+--[[
+	Heartbeat that tracks the nearest entity.
+
+	A drone tells you something is out there; it does not tell you how close.
+	Tying rate and volume to the nearest entity turns "something is nearby" into
+	"it is nearly on you" with no UI at all — and it goes silent the moment
+	nothing is in range, so it reads as information rather than as decoration.
+]]
+local function startHeartbeat(parent: Instance)
+	if SETTINGS.HeartbeatId == "" then
+		return
+	end
+
+	local heart = newSound("Heartbeat", SETTINGS.HeartbeatId, parent)
+	if not heart then
+		return
+	end
+	heart.Looped = true
+	heart.Volume = 0
+
+	local player = Players.LocalPlayer
+
+	RunService.Heartbeat:Connect(function()
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local entities = workspace:FindFirstChild("Entities")
+		if not root or not root:IsA("BasePart") or not entities then
+			heart.Volume = 0
+			if heart.IsPlaying then
+				heart:Stop()
+			end
+			return
+		end
+
+		local closest = math.huge
+		for _, model in entities:GetChildren() do
+			local part = model:IsA("Model") and model.PrimaryPart
+			if part then
+				closest = math.min(closest, (part.Position - root.Position).Magnitude)
+			end
+		end
+
+		if closest > SETTINGS.HeartbeatRange then
+			heart.Volume = 0
+			if heart.IsPlaying then
+				heart:Stop()
+			end
+			return
+		end
+
+		-- 0 at the edge of the range, 1 when it is on top of you.
+		local intensity = 1 - math.clamp(closest / SETTINGS.HeartbeatRange, 0, 1)
+		heart.Volume = SETTINGS.HeartbeatVolume * intensity
+		heart.PlaybackSpeed = SETTINGS.HeartbeatPitch[1]
+			+ (SETTINGS.HeartbeatPitch[2] - SETTINGS.HeartbeatPitch[1]) * intensity
+		if not heart.IsPlaying then
+			heart:Play()
+		end
+	end)
+end
+
 function Ambience.start()
 	-- Parented to SoundService so it's non-positional: the score follows the
 	-- player rather than coming from a point in the level.
@@ -123,6 +185,7 @@ function Ambience.start()
 	end
 
 	startStingers(folder)
+	startHeartbeat(folder)
 end
 
 return Ambience

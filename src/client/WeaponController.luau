@@ -139,7 +139,16 @@ local fireEmitter: Part? = nil
 
 local function playFireSound(weaponId: string, position: Vector3)
 	local stats = WeaponConfig.Weapons[weaponId]
-	if not stats or not Config.Audio.Enabled or Config.WeaponAudio.FireSoundId == "" then
+	if not stats or not Config.Audio.Enabled then
+		return
+	end
+
+	-- Automatic fire uses a burst recording rather than a single crack, which
+	-- sounds far better at eleven rounds a second than the same shot repeated.
+	local soundId = if stats.Mode == "Burst" or stats.Mode == "Auto"
+		then Config.WeaponAudio.AutoFireSoundId
+		else Config.WeaponAudio.FireSoundId
+	if soundId == "" then
 		return
 	end
 
@@ -168,7 +177,7 @@ local function playFireSound(weaponId: string, position: Vector3)
 	local sound = firePool[weaponId]
 	if not sound then
 		local created = SoundKit.create(emitter, {
-			Id = Config.WeaponAudio.FireSoundId,
+			Id = soundId,
 			Pitch = stats.FireSound.Pitch,
 			Volume = stats.FireSound.Volume,
 			Range = stats.FireSound.Range,

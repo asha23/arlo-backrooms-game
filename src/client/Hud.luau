@@ -5,7 +5,10 @@
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 -- On touch devices the bottom-left is Roblox's movement thumbstick and the
 -- bottom-right is our fire button, so the readouts move to the top.
@@ -29,6 +32,7 @@ export type Hud = typeof(setmetatable(
 		_countdown: TextLabel,
 		_deathPrompt: TextLabel,
 		_torchWarning: TextLabel,
+		_lives: { ImageLabel },
 	},
 	Hud
 ))
@@ -214,6 +218,55 @@ function Hud.new(): Hud
 	headshot.TextTransparency = 1
 	headshot.Parent = gui
 
+	--[[
+		Lives, bottom right, drawn as copies of the player's own avatar head.
+
+		GetUserThumbnailAsync yields and can fail (it is a web request), so the
+		icons are created immediately as plain coloured squares and the portrait
+		is filled in when it arrives. A HUD element that only appears if a
+		network call succeeds is a HUD element that sometimes isn't there.
+	]]
+	local livesIcons: { ImageLabel } = {}
+	local maxLives = Config.Lives.Maximum
+	for index = 1, maxLives do
+		local icon = Instance.new("ImageLabel")
+		icon.Name = `Life{index}`
+		icon.Size = UDim2.fromOffset(30, 30)
+		icon.AnchorPoint = Vector2.new(1, 1)
+		icon.Position = UDim2.new(1, -24 - (maxLives - index) * 34, 1, -56)
+		icon.BackgroundColor3 = Color3.fromRGB(60, 56, 50)
+		icon.BackgroundTransparency = 0.25
+		icon.BorderSizePixel = 0
+		icon.Parent = gui
+
+		local round = Instance.new("UICorner")
+		round.CornerRadius = UDim.new(0.5, 0)
+		round.Parent = icon
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Color = Config.Lives.Color
+		stroke.Parent = icon
+
+		table.insert(livesIcons, icon)
+	end
+
+	task.spawn(function()
+		local ok, image = pcall(function()
+			return Players:GetUserThumbnailAsync(
+				Players.LocalPlayer.UserId,
+				Enum.ThumbnailType.HeadShot,
+				Enum.ThumbnailSize.Size100x100
+			)
+		end)
+		if not ok then
+			return -- the plain squares stand in perfectly well
+		end
+		for _, icon in livesIcons do
+			icon.Image = image
+		end
+	end)
+
 	local ammo = Instance.new("TextLabel")
 	ammo.Name = "Ammo"
 	ammo.Size = UDim2.fromOffset(280, 24)
@@ -250,6 +303,7 @@ function Hud.new(): Hud
 		_countdown = countdown,
 		_deathPrompt = deathPrompt,
 		_torchWarning = torchWarning,
+		_lives = livesIcons,
 		_bars = {
 			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -288,6 +342,23 @@ end
 
 --- Victory banner. Uses the countdown slot, which is already centred and above
 --- everything else, rather than adding a second full-screen element.
+--- Full-screen GAME OVER, reusing the countdown slot.
+function Hud.showGameOver(self: Hud)
+	local label = self._countdown
+	label.TextColor3 = Color3.fromRGB(235, 70, 60)
+	label.TextSize = 76
+	label.Text = "GAME OVER"
+	label.TextTransparency = 0
+	-- The prompt IS the restart: one click starts a fresh run.
+	self:setDeathPrompt("CLICK TO PLAY AGAIN")
+
+	task.delay(3.2, function()
+		if label.Text == "GAME OVER" then
+			label.Text = ""
+		end
+	end)
+end
+
 function Hud.showEscape(self: Hud, bonusScore: number, bonusCash: number)
 	local label = self._countdown
 	label.TextColor3 = Color3.fromRGB(90, 240, 130)
@@ -310,6 +381,23 @@ end
 	own so the go signal is unmistakable at a glance — you should not have to
 	read the word to know the count has ended.
 ]]
+--[[
+	Lives remaining. Spent lives dim rather than disappear, so the count of what
+	you started with stays visible — five faded icons reads as "you are on your
+	last" far faster than one icon does.
+]]
+function Hud.setLives(self: Hud, remaining: number)
+	for index, icon in self._lives do
+		local alive = index <= remaining
+		icon.ImageTransparency = if alive then 0 else 0.78
+		icon.BackgroundTransparency = if alive then 0.25 else 0.75
+		local stroke = icon:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Transparency = if alive then 0 else 0.7
+		end
+	end
+end
+
 --- Shows or clears the death prompt.
 function Hud.setDeathPrompt(self: Hud, text: string?)
 	local label = self._deathPrompt

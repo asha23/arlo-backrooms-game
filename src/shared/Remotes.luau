@@ -69,6 +69,8 @@ local MANIFEST: { [string]: string } = {
 	ToggleFlashlight = "RemoteEvent",
 	FlashlightState = "RemoteEvent",
 	Leaderboard = "RemoteEvent",
+	LivesChanged = "RemoteEvent",
+	GameOver = "RemoteEvent",
 	RequestLeaderboard = "RemoteEvent",
 }
 
@@ -148,6 +150,16 @@ end
 -- Client -> Server: switch the torch on or off.
 function Remotes.ToggleFlashlight(): RemoteEvent
 	return get("ToggleFlashlight", "RemoteEvent")
+end
+
+-- Server -> Client: lives remaining.
+function Remotes.LivesChanged(): RemoteEvent
+	return get("LivesChanged", "RemoteEvent")
+end
+
+-- Server -> Client: out of lives; the run is over.
+function Remotes.GameOver(): RemoteEvent
+	return get("GameOver", "RemoteEvent")
 end
 
 -- Client -> Server: send me the all-time top scores.
