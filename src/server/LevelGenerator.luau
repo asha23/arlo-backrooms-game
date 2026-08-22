@@ -251,7 +251,7 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			end
 
 			local light = Instance.new("PointLight")
-			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(0.3, 0.55)
+			light.Brightness = if dead then LEVEL.DeadLightBrightness else rng:NextNumber(1.1, 1.6)
 			-- Range is reach, not brightness: kept wide enough that every open
 			-- cell falls inside some fixture's falloff (worst case measured at
 			-- 25.5 studs), while Brightness stays low so it reads as gloom.
@@ -259,7 +259,14 @@ local function buildLights(grid: Grid, parent: Instance, rng: Random)
 			light.Color = if dead
 				then Color3.fromRGB(190, 200, 210)
 				else Color3.fromRGB(255, 247, 214)
-			light.Shadows = not dead
+			--[[
+				No shadows on the corridor fixtures. Shadow-casting lights are
+				by far the scarcest thing in the renderer's budget, and with
+				hundreds of them the engine drops lights wholesale. Flat lit
+				corridors that are actually visible beat beautifully shadowed
+				ones that render black.
+			]]
+			light.Shadows = false
 			light.Parent = fixture
 		end
 	end

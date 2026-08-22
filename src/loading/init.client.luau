@@ -128,10 +128,14 @@ waitFor("loading assets", 30, function()
 end)
 
 waitFor("building level", 30, function()
+	--[[
+		With StreamingEnabled the client never holds the whole level, only what
+		is near the player — so counting the level's children is meaningless
+		here. Waiting for the Level model itself plus the floor is the right
+		test: the rest arrives through the streaming request below.
+	]]
 	local level = workspace:FindFirstChild("Level")
-	-- The floor is the first thing the generator emits; if it's there with a
-	-- decent number of walls alongside it, geometry has arrived.
-	return level ~= nil and level:FindFirstChild("Floor") ~= nil and #level:GetChildren() > 50
+	return level ~= nil and level:FindFirstChild("Floor") ~= nil
 end)
 
 waitFor("lighting corridors", 15, function()
@@ -146,6 +150,25 @@ waitFor("finding a way in", 30, function()
 		and character:FindFirstChild("HumanoidRootPart") ~= nil
 		and character:FindFirstChildOfClass("Humanoid") ~= nil
 end)
+
+--[[
+	Explicitly ask the engine to stream in everything around the spawn before
+	the fade. Without this the player is revealed inside geometry that is still
+	arriving — which looks exactly like the dark, empty room we are trying to
+	avoid showing them.
+]]
+report("streaming surroundings")
+do
+	local character = player.Character
+	if character then
+		local ok = pcall(function()
+			player:RequestStreamAroundAsync(character:GetPivot().Position)
+		end)
+		if not ok then
+			warn("[Loading] RequestStreamAroundAsync failed; continuing")
+		end
+	end
+end
 
 --[[
 	Everything reports ready — but "ready" means the instances exist, not that

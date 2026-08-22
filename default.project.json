@@ -30,18 +30,24 @@
     "Workspace": {
       "$className": "Workspace",
       "$properties": {
-        "FilteringEnabled": true
+        "FilteringEnabled": true,
+
+        "StreamingEnabled": true,
+        "StreamingIntegrityMode": "MinimumRadiusPause",
+        "StreamingMinRadius": 192,
+        "StreamingTargetRadius": 448
       }
     },
 
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Ambient": [0.055, 0.05, 0.042],
-        "OutdoorAmbient": [0.055, 0.05, 0.042],
+        "Ambient": [0.09, 0.082, 0.068],
+        "OutdoorAmbient": [0.09, 0.082, 0.068],
         "Brightness": 0,
         "ClockTime": 0,
         "GlobalShadows": true,
+        "Technology": "ShadowMap",
         "FogEnd": 260,
         "FogStart": 70,
         "FogColor": [0.42, 0.28, 0.12],

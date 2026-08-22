@@ -28,6 +28,35 @@ local Config = {
 		RoomChance = 0.012,
 		RoomRadius = 1,
 		LightSpacing = 3, -- place a ceiling light every N cells
+
+		--[[
+			Light streaming.
+
+			Roblox's renderer has a hard budget for local lights, and a far
+			smaller one for lights that cast shadows. The level creates roughly
+			280 fixtures; with all of them live the engine silently drops most —
+			including, routinely, the one directly above you, which is why the
+			level could read as pitch black despite obviously having lights.
+
+			The client keeps only the nearest few enabled. Everything past
+			ActiveLightRadius is switched off, so the budget is always spent on
+			the fixtures you can actually see.
+		]]
+		--[[
+			Budget and reach for the active set.
+
+			Sized against the numbers rather than guessed: fixtures sit roughly
+			one per 690 square studs, so a 150-stud radius holds about 100 of
+			them and this budget keeps the nearest 64. Since each fixture's own
+			Range is 28 studs, anything culled at that distance could not have
+			lit a surface you can see anyway. Now that these no longer cast
+			shadows they are cheap enough to afford this many.
+		]]
+		MaxActiveLights = 64,
+		ActiveLightRadius = 150,
+		-- How often the active set is recalculated. Four times a second is
+		-- imperceptible while walking and costs almost nothing.
+		LightStreamInterval = 0.25,
 		-- The spawn room is deliberately over-lit: arriving in pitch darkness
 		-- with no bearings reads as a bug rather than as atmosphere.
 		--[[
@@ -37,7 +66,7 @@ local Config = {
 			ever genuinely unlit — being unable to see at all reads as a bug,
 			not as atmosphere.
 		]]
-		FlickerDimBrightness = 0.08,
+		FlickerDimBrightness = 0.2,
 
 		--[[
 			Proportion of fixtures that are simply dead.
@@ -48,11 +77,11 @@ local Config = {
 			leaving long stretches where the flashlight actually matters.
 		]]
 		DeadLightChance = 0.28,
-		DeadLightBrightness = 0.14,
+		DeadLightBrightness = 0.35,
 
 		SpawnLightRadius = 3, -- cells around spawn that get guaranteed lighting
-		SpawnLightBrightness = 1,
-		SpawnLightRange = 28,
+		SpawnLightBrightness = 2,
+		SpawnLightRange = 34,
 		Seed = 0, -- 0 = random each server start
 
 		-- Surfaces. SmoothPlastic keeps the walls flat and untextured; swap to

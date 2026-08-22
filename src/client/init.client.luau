@@ -19,6 +19,7 @@ local CoreUi = require(script.CoreUi)
 local Flashlight = require(script.Flashlight)
 local Hud = require(script.Hud)
 local LightFlicker = require(script.LightFlicker)
+local LightStreaming = require(script.LightStreaming)
 local Recoil = require(script.Recoil)
 local Remotes = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Remotes)
 local Sprint = require(script.Sprint)
@@ -56,6 +57,7 @@ TouchControls.start({
 })
 
 Ambience.start()
+LightStreaming.start()
 LightFlicker.start()
 
 --- Runs on its own thread: `attach` waits on character parts that may not exist yet.
