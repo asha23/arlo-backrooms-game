@@ -104,7 +104,8 @@ local Weapons: { [string]: Weapon } = {
 		-- 18 degrees against a default 70 is roughly 4x magnification, and the
 		-- reduced sensitivity is what makes that magnification usable — at
 		-- normal sensitivity a scoped view swings far too fast to aim with.
-		Scope = { FieldOfView = 18, Sensitivity = 0.3 },
+		-- 0.255 is 0.3 less 15%.
+		Scope = { FieldOfView = 18, Sensitivity = 0.255 },
 		FireSound = {
 			Pitch = 0.42,
 			Volume = 1,

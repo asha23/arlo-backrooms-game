@@ -811,7 +811,11 @@ local Config = {
 		-- The beam itself.
 		Range = 70,
 		Angle = 55,
-		Brightness = 3,
+		Brightness = 4,
+		-- A wide dim companion light, so carrying a torch lifts the area you
+		-- are standing in rather than only lighting the disc you point at.
+		SpillRange = 34,
+		SpillBrightness = 1.4,
 
 		--[[
 			What it does to the entities.

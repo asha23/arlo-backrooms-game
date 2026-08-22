@@ -67,24 +67,24 @@ local function buildTorch(anchored: boolean): Model
 
 	local body = newPart({
 		Name = "Body",
-		Size = Vector3.new(0.42, 0.42, 1.5),
+		Size = Vector3.new(0.55, 0.55, 1.9),
 		Color = Color3.fromRGB(52, 52, 56),
 		Anchored = anchored,
 	}, model)
 
 	local lens = newPart({
 		Name = "Lens",
-		Size = Vector3.new(0.34, 0.34, 0.12),
+		Size = Vector3.new(0.46, 0.46, 0.16),
 		Color = Color3.fromRGB(255, 246, 214),
 		Material = Enum.Material.Neon,
 		Anchored = anchored,
 	}, model)
-	lens.CFrame = body.CFrame * CFrame.new(0, 0, -0.8)
+	lens.CFrame = body.CFrame * CFrame.new(0, 0, -1.0)
 
 	local weld = Instance.new("Weld")
 	weld.Part0 = body
 	weld.Part1 = lens
-	weld.C0 = CFrame.new(0, 0, -0.8)
+	weld.C0 = CFrame.new(0, 0, -1.0)
 	weld.Parent = body
 
 	model.PrimaryPart = body
@@ -147,6 +147,14 @@ local function attach(player: Player): boolean
 
 	body.CFrame = arm.CFrame * grip
 
+	--[[
+		Parent the model BEFORE welding. A Weld created while Part1 is still
+		outside the world is not reliably honoured, and an unanchored massless
+		part that fails to weld simply drops through the floor — which looks
+		exactly like the torch never being picked up at all.
+	]]
+	model.Parent = character
+
 	local weld = Instance.new("Weld")
 	weld.Part0 = arm
 	weld.Part1 = body
@@ -164,7 +172,17 @@ local function attach(player: Player): boolean
 	light.Enabled = false
 	light.Parent = body
 
-	model.Parent = character
+	-- A second, wide, dim light so the torch lifts the whole area around you
+	-- rather than only painting a disc on whatever it points at.
+	local spill = Instance.new("PointLight")
+	spill.Name = "Spill"
+	spill.Range = SETTINGS.SpillRange
+	spill.Brightness = SETTINGS.SpillBrightness
+	spill.Color = Color3.fromRGB(255, 244, 214)
+	spill.Shadows = false
+	spill.Enabled = false
+	spill.Parent = body
+
 	torch.model = model
 	torch.light = light
 	return true
@@ -205,18 +223,38 @@ function FlashlightService.threatFor(position: Vector3): Vector3?
 			continue
 		end
 
-		local offset = position - body.Position
+		--[[
+			Measured from the player, and aimed along the CHARACTER's facing
+			rather than the torch part's.
+
+			The previous version negated the torch's LookVector. LookVector is
+			already the front direction in Roblox, and a Part's Front face —
+			where SpotLight.Face = Front shines — is that same -Z. Negating it
+			pointed the scare cone directly behind the player: things behind
+			fled, and the ones in front, which are the ones actually lit, kept
+			coming. Using the root also means the cone matches where the player
+			believes they are pointing, rather than wherever a swinging arm
+			happens to be.
+		]]
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root then
+			continue
+		end
+
+		local offset = position - root.Position
 		local distance = offset.Magnitude
 		if distance > SETTINGS.ScareRange or distance < 0.1 then
 			continue
 		end
 
-		-- The arm's -Z is where the beam points, matching SpotLight Face.Front.
-		local facing = -body.CFrame.LookVector
-		if facing:Dot(offset.Unit) >= cosLimit then
-			local character = player.Character
-			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			return if root then root.Position else body.Position
+		local facing = root.CFrame.LookVector
+		-- Compare on the horizontal plane: a ten-stud entity's centre is well
+		-- above the player's, and the vertical component would otherwise push
+		-- a close entity out of the cone.
+		local flat = Vector3.new(offset.X, 0, offset.Z)
+		if flat.Magnitude > 0.1 and facing:Dot(flat.Unit) >= cosLimit then
+			return root.Position
 		end
 	end
 	return nil
@@ -230,6 +268,11 @@ local function setOn(player: Player, on: boolean)
 	torch.on = on
 	if torch.light then
 		torch.light.Enabled = on
+	end
+	local body = torch.model.PrimaryPart
+	local spill = body and body:FindFirstChild("Spill")
+	if spill and spill:IsA("PointLight") then
+		spill.Enabled = on
 	end
 	local lens = torch.model:FindFirstChild("Lens") :: BasePart?
 	if lens then
