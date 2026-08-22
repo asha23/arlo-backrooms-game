@@ -355,14 +355,15 @@ function FlashlightService.spawnPickups(positions: { Vector3 })
 		local body = display.PrimaryPart :: BasePart
 		local glow = Instance.new("PointLight")
 		glow.Color = Color3.fromRGB(255, 240, 200)
-		glow.Brightness = 1
-		glow.Range = 16
+		glow.Brightness = 1.6
+		glow.Range = 26
 		glow.Parent = body
 
 		local billboard = Instance.new("BillboardGui")
 		billboard.Size = UDim2.fromOffset(150, 24)
 		billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.2, 0)
-		billboard.MaxDistance = 80
+		-- Visible from most of a corridor, not just the far end of one.
+		billboard.MaxDistance = 170
 		billboard.LightInfluence = 0
 		billboard.Parent = body
 

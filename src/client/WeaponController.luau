@@ -9,7 +9,6 @@ local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Recoil = require(script.Parent.Recoil)
@@ -66,37 +65,97 @@ local FIRE_BUTTONS: { [Enum.UserInputType]: boolean } = {
 
 local AIM_BUTTON = Enum.UserInputType.MouseButton2
 
+--[[
+	Pooled shot effects.
+
+	Every shot used to build three fresh Parts and a PointLight, hand them to
+	Debris and let them be collected. At eleven rounds a second that is a
+	sustained churn of instance creation and destruction on the client, and it
+	is what made the machine gun stutter.
+
+	These are created once and reused round-robin. A tracer that is still
+	visible when its slot comes round again is simply repositioned, which at
+	these fire rates is invisible — and the cost is now fixed no matter how fast
+	anyone is shooting.
+]]
+local POOL_SIZE = 12
+
+local tracerPool: { Part } = {}
+local impactPool: { Part } = {}
+local flashPart: Part? = nil
+local flashLight: PointLight? = nil
+local tracerNext, impactNext = 1, 1
+
+local function makeEffectPart(name: string, color: Color3, size: Vector3): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Material = Enum.Material.Neon
+	p.Color = color
+	p.Size = size
+	p.Transparency = 1
+	p.Parent = workspace
+	return p
+end
+
+local function ensurePools()
+	if #tracerPool > 0 then
+		return
+	end
+	for _ = 1, POOL_SIZE do
+		table.insert(
+			tracerPool,
+			makeEffectPart("Tracer", Color3.fromRGB(255, 226, 150), Vector3.new(0.08, 0.08, 1))
+		)
+		table.insert(
+			impactPool,
+			makeEffectPart("Impact", Color3.fromRGB(255, 200, 120), Vector3.new(0.3, 0.3, 0.3))
+		)
+	end
+
+	local flash = makeEffectPart("MuzzleFlash", Color3.fromRGB(255, 231, 168), Vector3.one * 0.9)
+	flash.Shape = Enum.PartType.Ball
+	local light = Instance.new("PointLight")
+	light.Brightness = 2.2
+	light.Range = 14
+	light.Color = Color3.fromRGB(255, 226, 160)
+	light.Enabled = false
+	light.Parent = flash
+	flashPart = flash
+	flashLight = light
+end
+
+--- Shows a pooled part briefly, then hides it again.
+local function flick(part: Part, seconds: number)
+	part.Transparency = 0.25
+	task.delay(seconds, function()
+		part.Transparency = 1
+	end)
+end
+
 local function tracer(from: Vector3, to: Vector3)
 	local distance = (to - from).Magnitude
 	if distance < 0.5 then
 		return
 	end
+	ensurePools()
 
-	local beam = Instance.new("Part")
-	beam.Anchored = true
-	beam.CanCollide = false
-	beam.CanQuery = false
-	beam.CanTouch = false
-	beam.Material = Enum.Material.Neon
-	beam.Color = Color3.fromRGB(255, 226, 150)
-	beam.Size = Vector3.new(0.08, 0.08, distance)
-	beam.CFrame = CFrame.lookAt(from:Lerp(to, 0.5), to)
-	beam.Transparency = 0.25
-	beam.Parent = workspace
-	Debris:AddItem(beam, 0.08)
+	local part = tracerPool[tracerNext]
+	tracerNext = tracerNext % #tracerPool + 1
+	part.Size = Vector3.new(0.08, 0.08, distance)
+	part.CFrame = CFrame.lookAt(from:Lerp(to, 0.5), to)
+	flick(part, 0.06)
 end
 
 local function impact(position: Vector3)
-	local spark = Instance.new("Part")
-	spark.Anchored = true
-	spark.CanCollide = false
-	spark.CanQuery = false
-	spark.Material = Enum.Material.Neon
-	spark.Color = Color3.fromRGB(255, 200, 120)
-	spark.Size = Vector3.new(0.3, 0.3, 0.3)
-	spark.CFrame = CFrame.new(position)
-	spark.Parent = workspace
-	Debris:AddItem(spark, 0.12)
+	ensurePools()
+	local part = impactPool[impactNext]
+	impactNext = impactNext % #impactPool + 1
+	part.CFrame = CFrame.new(position)
+	flick(part, 0.1)
 end
 
 --- The weapon id a given player currently has equipped, if any.
@@ -145,9 +204,14 @@ local function playFireSound(weaponId: string, position: Vector3)
 
 	-- Automatic fire uses a burst recording rather than a single crack, which
 	-- sounds far better at eleven rounds a second than the same shot repeated.
-	local soundId = if stats.Mode == "Burst" or stats.Mode == "Auto"
-		then Config.WeaponAudio.AutoFireSoundId
-		else Config.WeaponAudio.FireSoundId
+	local soundId
+	if weaponId == "Shotgun" then
+		soundId = Config.WeaponAudio.ShotgunSoundId
+	elseif stats.Mode == "Burst" or stats.Mode == "Auto" then
+		soundId = Config.WeaponAudio.AutoFireSoundId
+	else
+		soundId = Config.WeaponAudio.FireSoundId
+	end
 	if soundId == "" then
 		return
 	end
@@ -197,27 +261,21 @@ local function playFireSound(weaponId: string, position: Vector3)
 	sound:Play()
 end
 
---- A brief bright flare at the muzzle.
+--- A brief bright flare at the muzzle, from the single pooled flash part.
 local function muzzleFlash(position: Vector3)
-	local flash = Instance.new("Part")
-	flash.Anchored = true
-	flash.CanCollide = false
-	flash.CanQuery = false
-	flash.CanTouch = false
-	flash.Material = Enum.Material.Neon
-	flash.Color = Color3.fromRGB(255, 231, 168)
-	flash.Shape = Enum.PartType.Ball
-	flash.Size = Vector3.one * 0.9
+	ensurePools()
+	local flash = flashPart
+	local light = flashLight
+	if not flash or not light then
+		return
+	end
 	flash.CFrame = CFrame.new(position)
-	flash.Parent = workspace
-
-	local light = Instance.new("PointLight")
-	light.Brightness = 2.2
-	light.Range = 14
-	light.Color = Color3.fromRGB(255, 226, 160)
-	light.Parent = flash
-
-	Debris:AddItem(flash, 0.06)
+	flash.Transparency = 0.15
+	light.Enabled = true
+	task.delay(0.05, function()
+		flash.Transparency = 1
+		light.Enabled = false
+	end)
 end
 
 --- The tool the player is holding, if it's one of our weapons.

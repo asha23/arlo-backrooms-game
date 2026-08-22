@@ -23,6 +23,12 @@ export type Weapon = {
 	-- Degrees of upward camera kick per shot. Decays back automatically.
 	Recoil: number,
 	--[[
+		Kills whatever it hits outright, bypassing the usual five-body-shot
+		rule. Reserved for the shotgun: at close range a shotgun that needed
+		five hits would be strictly worse than the pistol.
+	]]
+	InstantKill: boolean?,
+	--[[
 		Optional telescopic sight. When present, holding right mouse zooms and
 		shows the scope overlay instead of firing — the aim button takes
 		priority over the fire button on a weapon that has one.
@@ -50,7 +56,7 @@ local Weapons: { [string]: Weapon } = {
 		Mode = "Semi",
 		BurstCount = 0,
 		BurstCooldown = 0,
-		Recoil = 0.6,
+		Recoil = 0.2,
 		FireSound = {
 			Pitch = 0.85,
 			Volume = 0.75,
@@ -75,7 +81,7 @@ local Weapons: { [string]: Weapon } = {
 		Mode = "Burst",
 		BurstCount = 10,
 		BurstCooldown = 0.4,
-		Recoil = 0.25,
+		Recoil = 0.1,
 		FireSound = {
 			Pitch = 1.15,
 			Volume = 0.55,
@@ -92,6 +98,38 @@ local Weapons: { [string]: Weapon } = {
 		HandleColor = Color3.fromRGB(42, 46, 42),
 	},
 
+	Shotgun = {
+		Name = "Shotgun",
+		--[[
+			Kills outright, but only what it actually hits. Nine pellets in a
+			wide cone means it is devastating in a corridor and close to useless
+			down one — the range limit and the spread are what stop an instant
+			kill from trivialising the game.
+		]]
+		Damage = 40,
+		HeadshotMultiplier = 1,
+		InstantKill = true,
+		FireRate = 1.1,
+		Mode = "Semi",
+		BurstCount = 0,
+		BurstCooldown = 0,
+		Recoil = 0.45,
+		FireSound = {
+			Pitch = 0.62,
+			Volume = 1,
+			Range = 420,
+			Reverb = 3,
+		},
+		MagazineSize = 6,
+		ReserveAmmo = 36,
+		ReloadTime = 3,
+		Range = 60,
+		Spread = 7.5,
+		PelletsPerShot = 9,
+		HandleSize = Vector3.new(0.5, 1.0, 3.6),
+		HandleColor = Color3.fromRGB(74, 52, 38),
+	},
+
 	SniperRifle = {
 		Name = "Sniper Rifle",
 		Damage = 95,
@@ -100,7 +138,7 @@ local Weapons: { [string]: Weapon } = {
 		Mode = "Semi",
 		BurstCount = 0,
 		BurstCooldown = 0,
-		Recoil = 1.5,
+		Recoil = 0.5,
 		-- 18 degrees against a default 70 is roughly 4x magnification, and the
 		-- reduced sensitivity is what makes that magnification usable — at
 		-- normal sensitivity a scoped view swings far too fast to aim with.
@@ -126,7 +164,7 @@ local Weapons: { [string]: Weapon } = {
 local WeaponConfig = {
 	Weapons = Weapons,
 	-- Stable ordering, so spawn distribution doesn't depend on hash iteration.
-	Order = { "Pistol", "MachineGun", "SniperRifle" },
+	Order = { "Pistol", "MachineGun", "Shotgun", "SniperRifle" },
 }
 
 return WeaponConfig

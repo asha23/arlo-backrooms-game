@@ -53,7 +53,7 @@ local SIZES = {
 	weapon = 6,
 	health = 6,
 	cash = 5,
-	exit = 12,
+	exit = 30,
 	flashlight = 12,
 	life = 12,
 }
@@ -67,6 +67,7 @@ local function makeBlip(parent: Instance): Blip
 	blip.Parent = parent
 
 	local round = Instance.new("UICorner")
+	round.Name = "Round"
 	round.CornerRadius = UDim.new(0.5, 0)
 	round.Parent = blip
 
@@ -219,7 +220,15 @@ function Minimap.start()
 
 				local dx = item.position.X - origin.X
 				local dz = item.position.Z - origin.Z
-				if dx * dx + dz * dz > SETTINGS.Range ^ 2 then
+
+				--[[
+					The exit is never hidden. Everything else disappears beyond
+					the radar's range; the exit is clamped to the rim instead,
+					so it always shows which way out is — that is the one thing
+					the player needs to be able to see from anywhere.
+				]]
+				local outOfRange = dx * dx + dz * dz > SETTINGS.Range ^ 2
+				if outOfRange and item.kind ~= "exit" then
 					continue
 				end
 
@@ -231,7 +240,34 @@ function Minimap.start()
 				local blip = pool[used]
 				local px = SETTINGS.RotateWithCamera and rx or dx
 				local py = SETTINGS.RotateWithCamera and rz or dz
+
+				if outOfRange then
+					-- Pin it to the rim, keeping the bearing.
+					local length = math.sqrt(px * px + py * py)
+					px, py = px / length * SETTINGS.Range, py / length * SETTINGS.Range
+				end
+
 				local dot = SIZES[item.kind] or 6
+				if item.kind == "exit" then
+					--[[
+						A large pulsing SQUARE, not a dot. It has to be findable
+						at a glance among a dozen circular blips, so it differs
+						in shape, size and motion all at once.
+					]]
+					dot = math.floor(dot * (0.78 + 0.22 * math.abs(math.sin(os.clock() * 3))))
+					local corner = blip:FindFirstChild("Round")
+					if corner and corner:IsA("UICorner") then
+						corner.CornerRadius = UDim.new(0, 3)
+					end
+					blip.ZIndex = 4
+				else
+					local corner = blip:FindFirstChild("Round")
+					if corner and corner:IsA("UICorner") then
+						corner.CornerRadius = UDim.new(0.5, 0)
+					end
+					blip.ZIndex = 3
+				end
+
 				blip.Size = UDim2.fromOffset(dot, dot)
 				blip.BackgroundColor3 = COLORS[item.kind] or Color3.new(1, 1, 1)
 				blip.Position = UDim2.new(0.5, px * scale, 0.5, -py * scale)

@@ -171,6 +171,60 @@ local function startHeartbeat(parent: Instance)
 	end)
 end
 
+--[[
+	Exit proximity radar.
+
+	Beeps faster the closer you are, like a metal detector. The interval is
+	interpolated on a curve rather than linearly, so most of the acceleration
+	happens in the last stretch — a beep rate that changes evenly over 220 studs
+	is not something anyone can read, whereas one that suddenly quickens as you
+	round the right corner is unmistakable.
+]]
+local function startExitRadar(parent: Instance)
+	local escape = Config.Escape
+	if escape.BeepId == "" then
+		return
+	end
+
+	local beep = newSound("ExitRadar", escape.BeepId, parent)
+	if not beep then
+		return
+	end
+	beep.Volume = escape.BeepVolume
+
+	local player = Players.LocalPlayer
+
+	task.spawn(function()
+		while true do
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local exitFolder = workspace:FindFirstChild("Exit")
+			local pad = exitFolder and exitFolder:FindFirstChild("ExitPad")
+
+			if not root or not root:IsA("BasePart") or not pad or not pad:IsA("BasePart") then
+				task.wait(0.5)
+				continue
+			end
+
+			local distance = (pad.Position - root.Position).Magnitude
+			if distance > escape.BeepRange then
+				task.wait(0.5)
+				continue
+			end
+
+			-- Squared so the quickening is concentrated near the exit.
+			local closeness = 1 - math.clamp(distance / escape.BeepRange, 0, 1)
+			local far, near = escape.BeepInterval[1], escape.BeepInterval[2]
+			local interval = far + (near - far) * (closeness * closeness)
+
+			beep.PlaybackSpeed = 1 + closeness * 0.6
+			beep.Volume = escape.BeepVolume * (0.5 + 0.5 * closeness)
+			beep:Play()
+			task.wait(interval)
+		end
+	end)
+end
+
 function Ambience.start()
 	-- Parented to SoundService so it's non-positional: the score follows the
 	-- player rather than coming from a point in the level.
@@ -186,6 +240,7 @@ function Ambience.start()
 
 	startStingers(folder)
 	startHeartbeat(folder)
+	startExitRadar(folder)
 end
 
 return Ambience

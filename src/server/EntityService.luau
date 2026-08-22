@@ -933,6 +933,27 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: V
 				if targetHumanoid and now - lastAttack >= SETTINGS.AttackCooldown then
 					lastAttack = now
 					targetHumanoid:TakeDamage(SETTINGS.AttackDamage)
+
+					--[[
+						The hit costs it. It takes damage and is thrown back
+						out of your space, so a hit is a discrete exchange
+						rather than something standing inside you grinding
+						away — you cannot retreat from what is already touching
+						you, so it has to be the one that moves.
+					]]
+					humanoid:TakeDamage(SETTINGS.AttackSelfDamage)
+					local away = Vector3.new(
+						root.Position.X - targetRoot.Position.X,
+						0,
+						root.Position.Z - targetRoot.Position.Z
+					)
+					if away.Magnitude > 0.1 then
+						root.AssemblyLinearVelocity = away.Unit * SETTINGS.AttackKnockback
+							+ Vector3.new(0, 18, 0)
+					end
+					-- Briefly stop steering, or MoveTo fights the knockback.
+					task.wait(0.35)
+					continue
 				end
 				humanoid:MoveTo(targetRoot.Position)
 				task.wait(0.15)

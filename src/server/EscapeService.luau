@@ -97,6 +97,95 @@ local function buildExit(position: Vector3, parent: Instance)
 	pad:AddTag("Exit")
 end
 
+--[[
+	Wall arrows pointing the way out.
+
+	A maze of identical corridors gives you nothing to navigate by, and the exit
+	is deliberately placed as far from spawn as the level allows — without some
+	signposting, finding it is a random walk rather than a journey.
+
+	Each arrow is raycast onto a real wall rather than placed in mid-air, and
+	yawed toward the exit. It points as the crow flies, not along the corridor:
+	that is honest about what it knows, and following a straight-line bearing
+	through a maze still gets you there.
+]]
+local function buildArrows(positions: { Vector3 }, target: Vector3, parent: Instance)
+	local settings = SETTINGS
+	local placed = 0
+	local attempts = 0
+	local rng = Random.new()
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { parent }
+
+	while placed < settings.ArrowCount and attempts < settings.ArrowCount * 12 do
+		attempts += 1
+		local origin = positions[rng:NextInteger(1, #positions)]
+			+ Vector3.new(0, settings.ArrowHeight, 0)
+
+		-- Too close to the exit and an arrow is noise; you can already see it.
+		if (origin - target).Magnitude < 40 then
+			continue
+		end
+
+		-- Find a wall to mount on.
+		local directions = {
+			Vector3.new(1, 0, 0),
+			Vector3.new(-1, 0, 0),
+			Vector3.new(0, 0, 1),
+			Vector3.new(0, 0, -1),
+		}
+		local hit: RaycastResult? = nil
+		for _, direction in directions do
+			local result = workspace:Raycast(origin, direction * 6, params)
+			if result and result.Instance.Name == "Wall" then
+				hit = result
+				break
+			end
+		end
+		if not hit then
+			continue
+		end
+
+		local flat = Vector3.new(target.X - origin.X, 0, target.Z - origin.Z)
+		if flat.Magnitude < 1 then
+			continue
+		end
+
+		-- Sit just off the wall, facing out of it, yawed toward the exit.
+		local face = CFrame.lookAt(hit.Position + hit.Normal * 0.12, hit.Position + hit.Normal * 2)
+		local bearing = math.atan2(flat.X, flat.Z)
+		local surfaceYaw = math.atan2(hit.Normal.X, hit.Normal.Z)
+		local spin = bearing - surfaceYaw
+
+		local shaft = newPart({
+			Name = "ExitArrowShaft",
+			Size = Vector3.new(0.28, 1.5, 0.08),
+			CFrame = face * CFrame.Angles(0, 0, -spin) * CFrame.new(0, -0.35, 0),
+			Color = settings.ArrowColor,
+			Transparency = 0.15,
+		}, parent)
+
+		local head = Instance.new("WedgePart")
+		head.Name = "ExitArrowHead"
+		head.Anchored = true
+		head.CanCollide = false
+		head.CanTouch = false
+		head.CanQuery = false
+		head.Material = Enum.Material.Neon
+		head.Color = settings.ArrowColor
+		head.Transparency = 0.15
+		head.Size = Vector3.new(0.1, 0.75, 0.95)
+		head.CFrame = shaft.CFrame * CFrame.new(0, 1.1, 0) * CFrame.Angles(0, 0, math.rad(90))
+		head.Parent = parent
+
+		placed += 1
+	end
+
+	print(`[Escape] placed {placed} wall arrows`)
+end
+
 local function onEscape(player: Player)
 	if escaping[player] then
 		return
@@ -148,6 +237,11 @@ function EscapeService.start(positions: { Vector3 }, home: Vector3)
 	folder.Name = "Exit"
 	folder.Parent = workspace
 	buildExit(furthest, folder)
+
+	local arrows = Instance.new("Folder")
+	arrows.Name = "ExitArrows"
+	arrows.Parent = workspace
+	buildArrows(positions, furthest, arrows)
 
 	print(`[Escape] exit placed {math.floor(best)} studs from spawn`)
 

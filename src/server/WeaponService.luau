@@ -29,6 +29,7 @@ local MAX_ORIGIN_ERROR = 14
 local PICKUP_COLORS: { [string]: Color3 } = {
 	Pistol = Color3.fromRGB(120, 220, 255),
 	MachineGun = Color3.fromRGB(120, 255, 150),
+	Shotgun = Color3.fromRGB(255, 120, 200),
 	SniperRifle = Color3.fromRGB(255, 170, 90),
 }
 -- Fire-rate tolerance, to absorb network jitter without allowing rapid fire.
@@ -158,7 +159,10 @@ local function resolveShot(
 	]]
 	local combat = Config.Combat
 	local damage: number
-	if combat.UniformLethality then
+	if stats.InstantKill then
+		-- The shotgun ignores the hit-count rule entirely; see WeaponConfig.
+		damage = humanoid.MaxHealth
+	elseif combat.UniformLethality then
 		if isHeadshot and combat.HeadshotIsLethal then
 			damage = humanoid.MaxHealth
 		else

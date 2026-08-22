@@ -389,6 +389,16 @@ local Config = {
 		AttackRange = 5.5,
 		AttackDamage = 12,
 		AttackCooldown = 1.1,
+		--[[
+			Hitting you costs the entity something and throws it backwards.
+
+			Without this they simply stand inside your personal space grinding
+			away at you, which is neither frightening nor fair — you cannot
+			retreat from something already touching you. A bounce turns each hit
+			into a discrete exchange you can answer.
+		]]
+		AttackSelfDamage = 18,
+		AttackKnockback = 55,
 		-- How long it keeps chasing your last known position after losing you.
 		SearchTime = 12,
 		RespawnDelay = 4,
@@ -560,6 +570,26 @@ local Config = {
 		BonusScore = 1000,
 		BonusCash = 1000,
 		TriggerRadius = 7,
+
+		--[[
+			Proximity radar for the exit.
+
+			Beeps faster the closer you are, in the manner of a metal detector.
+			A maze of identical corridors gives you nothing to navigate by, so
+			this is the difference between hunting for the exit and wandering
+			until you happen upon it.
+		]]
+		-- Electronic Blips (ProSoundEffects), verified against the asset API.
+		BeepId = "rbxassetid://9125531715",
+		BeepRange = 220,
+		BeepVolume = 0.45,
+		-- Seconds between beeps at the far edge of the range, and right on it.
+		BeepInterval = { 1.6, 0.14 },
+
+		-- Wall arrows pointing the way.
+		ArrowCount = 90,
+		ArrowColor = Color3.fromRGB(90, 240, 130),
+		ArrowHeight = 6,
 		Color = Color3.fromRGB(90, 240, 130),
 		-- How long the victory banner holds before you are put back in.
 		CelebrationSeconds = 4,
@@ -669,6 +699,8 @@ local Config = {
 	WeaponAudio = {
 		-- Gun Single Shots 11 (ProSoundEffects). Pitched per weapon.
 		FireSoundId = "rbxassetid://9114729252",
+		-- Gun Single Shots 23 (ProSoundEffects), pitched down for the shotgun.
+		ShotgunSoundId = "rbxassetid://9114727659",
 		-- Machine Gun Battle 5 (ProSoundEffects), for the automatic weapon.
 		AutoFireSoundId = "rbxassetid://9116353775",
 
@@ -823,7 +855,9 @@ local Config = {
 			lets you carry both, which is the whole point of a horror game
 			where you have to shoot in the dark.
 		]]
-		SpawnCount = 4,
+		-- Raised from 4: four in a 1090-cell maze meant most runs never found
+		-- one at all, which is scarce to the point of being invisible.
+		SpawnCount = 7,
 
 		MaxBattery = 100,
 		-- Per second while switched on: a full torch lasts exactly one minute
