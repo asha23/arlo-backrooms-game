@@ -591,6 +591,31 @@ local function broadcastAlert(origin: Vector3, position: Vector3, source: Model)
 end
 
 --[[
+	True if there is nothing solid between the entity and its target.
+
+	Without this the attack was a pure distance test, and the range was a full
+	cell — so an entity standing in the NEXT corridor, on the other side of a
+	wall, was close enough to hurt you. That is the health draining without
+	anything touching you: it genuinely was attacking, just through a wall.
+
+	Only the level blocks. Other entities are excluded, or a crowd would shield
+	the player from the one at the front.
+]]
+local function canReach(from: BasePart, to: BasePart): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {
+		from.Parent :: Instance,
+		to.Parent :: Instance,
+		workspace:FindFirstChild("Entities") :: Instance,
+	}
+
+	local offset = to.Position - from.Position
+	local hit = workspace:Raycast(from.Position, offset, params)
+	return hit == nil
+end
+
+--[[
 	Blue flashing while an entity is fleeing.
 
 	The colour is restored from the variant's own build rather than remembered
@@ -768,7 +793,7 @@ local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: V
 				targetRoot.Position.Z
 			)).Magnitude
 
-			if flat <= SETTINGS.AttackRange then
+			if flat <= SETTINGS.AttackRange and canReach(root, targetRoot) then
 				local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
 				if targetHumanoid and now - lastAttack >= SETTINGS.AttackCooldown then
 					lastAttack = now

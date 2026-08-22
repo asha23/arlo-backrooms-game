@@ -36,14 +36,26 @@ local COLORS = {
 	health = Color3.fromRGB(240, 90, 95),
 	cash = Color3.fromRGB(120, 235, 130),
 	exit = Color3.fromRGB(90, 240, 130),
+	flashlight = Color3.fromRGB(255, 236, 150),
+	life = Color3.fromRGB(255, 96, 120),
 }
 
+--[[
+	Blip diameters in pixels. Every blip is a circle (UICorner at 0.5).
+
+	Lives and flashlights are drawn noticeably larger than the rest because
+	there are only four and five of them in the entire level — they are the
+	things worth crossing the map for, and at the same size as a cash drop they
+	were lost among a dozen identical dots.
+]]
 local SIZES = {
 	entity = 7,
 	weapon = 6,
 	health = 6,
 	cash = 5,
-	exit = 10,
+	exit = 12,
+	flashlight = 12,
+	life = 12,
 }
 
 local function makeBlip(parent: Instance): Blip
@@ -87,6 +99,8 @@ local function gather(): { { position: Vector3, kind: string } }
 	scan("WeaponPickups", "weapon")
 	scan("Medkits", "health")
 	scan("CashDrops", "cash")
+	scan("FlashlightPickups", "flashlight")
+	scan("LivePickups", "life")
 	scan("Exit", "exit")
 
 	return found

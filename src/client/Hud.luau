@@ -359,14 +359,16 @@ function Hud.showGameOver(self: Hud)
 	end)
 end
 
-function Hud.showEscape(self: Hud, bonusScore: number, bonusCash: number)
+function Hud.showEscape(self: Hud, bonusScore: number, bonusCash: number, escapes: number?)
 	local label = self._countdown
 	label.TextColor3 = Color3.fromRGB(90, 240, 130)
 	label.TextSize = 64
-	label.Text = "YOU ESCAPED"
+	-- Number the escapes, so a repeat run reads as progress rather than as the
+	-- same message again.
+	label.Text = if escapes and escapes > 1 then `ESCAPE #{escapes}` else "YOU ESCAPED"
 	label.TextTransparency = 0
 
-	self:setDeathPrompt(`+{bonusScore} SCORE   +${bonusCash}`)
+	self:setDeathPrompt(`+{bonusScore} SCORE   +${bonusCash}   GO AGAIN`)
 
 	task.delay(3.4, function()
 		if label.Text == "YOU ESCAPED" then

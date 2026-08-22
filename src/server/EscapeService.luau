@@ -104,7 +104,9 @@ local function onEscape(player: Player)
 
 	ScoreService.registerEscape(player, SETTINGS.BonusScore)
 	ScoreService.addCash(player, SETTINGS.BonusCash)
-	Remotes.Escaped():FireClient(player, SETTINGS.BonusScore, SETTINGS.BonusCash)
+
+	local count = ScoreService.recordFor(player).escapes
+	Remotes.Escaped():FireClient(player, SETTINGS.BonusScore, SETTINGS.BonusCash, count)
 
 	task.delay(SETTINGS.CelebrationSeconds, function()
 		escaping[player] = nil

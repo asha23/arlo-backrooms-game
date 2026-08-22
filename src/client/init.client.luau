@@ -126,8 +126,8 @@ Remotes.GameOver().OnClientEvent:Connect(function()
 	hud:showGameOver()
 end)
 
-Remotes.Escaped().OnClientEvent:Connect(function(bonusScore, bonusCash)
-	hud:showEscape(bonusScore, bonusCash)
+Remotes.Escaped().OnClientEvent:Connect(function(bonusScore, bonusCash, escapes)
+	hud:showEscape(bonusScore, bonusCash, escapes)
 end)
 
 Remotes.Countdown().OnClientEvent:Connect(function(text, unlocked)

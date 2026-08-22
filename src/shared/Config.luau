@@ -214,15 +214,15 @@ local Config = {
 	},
 
 	Entity = {
-		MaxAlive = 10,
-		SpawnInterval = 3, -- seconds between spawn attempts
+		MaxAlive = 8,
+		SpawnInterval = 4, -- seconds between spawn attempts
 		-- They arrive in groups rather than one at a time, so you meet a pack
 		-- in a corridor instead of a lone figure.
 		GroupSize = { 2, 4 },
 		GroupRadius = 20, -- how far apart a group spawns
 		-- One that spots you tells everything within this range where you are.
 		-- This is what turns a scattering of wanderers into a hunt.
-		AlertRadius = 130,
+		AlertRadius = 95,
 		-- Never spawn one closer than this to a player, so they don't just
 		-- appear in your face.
 		MinSpawnDistance = 55,
@@ -251,8 +251,8 @@ local Config = {
 				Id = "Wanderer",
 				Weight = 3,
 				Health = 120,
-				WalkSpeed = 15,
-				ChaseSpeed = 29,
+				WalkSpeed = 14,
+				ChaseSpeed = 26,
 				Score = 100,
 				Tendrils = 0,
 				Build = {
@@ -279,8 +279,8 @@ local Config = {
 				Id = "Slender",
 				Weight = 1,
 				Health = 240,
-				WalkSpeed = 13,
-				ChaseSpeed = 31,
+				WalkSpeed = 12,
+				ChaseSpeed = 27,
 				Score = 300,
 				Tendrils = 4,
 				Build = {
@@ -315,8 +315,8 @@ local Config = {
 				Id = "Crawler",
 				Weight = 2,
 				Health = 90,
-				WalkSpeed = 19,
-				ChaseSpeed = 34,
+				WalkSpeed = 17,
+				ChaseSpeed = 30,
 				Score = 150,
 				Tendrils = 0,
 				-- Two heads. Both count for headshots.
@@ -355,13 +355,18 @@ local Config = {
 		SwayAngle = 5,
 		SwayPeriod = 4.5,
 
-		SightRange = 150,
+		SightRange = 105,
 		-- Inside this range it stops pathfinding and simply comes at you.
 		-- Pathfinding latency is what made them hesitate at close quarters.
-		LungeRange = 22,
-		AttackRange = 9,
-		AttackDamage = 22,
-		AttackCooldown = 0.75,
+		LungeRange = 16,
+		--[[
+			Attack reach, in studs, measured horizontally and only counted with
+			a clear line of sight. Deliberately well under the 9-stud cell size:
+			at a full cell, something in the next corridor was in range.
+		]]
+		AttackRange = 5.5,
+		AttackDamage = 12,
+		AttackCooldown = 1.1,
 		-- How long it keeps chasing your last known position after losing you.
 		SearchTime = 12,
 		RespawnDelay = 4,
@@ -506,8 +511,14 @@ local Config = {
 			which makes it readable from a long way down a corridor without
 			needing a marker.
 		]]
-		BonusScore = 2500,
-		BonusCash = 750,
+		--[[
+			Escaping is repeatable on purpose. You are returned to the entrance
+			and the exit stays where it is, so a second escape means crossing
+			the level again with fewer lives and a torch that has already been
+			half spent — the same journey, harder.
+		]]
+		BonusScore = 1000,
+		BonusCash = 1000,
 		TriggerRadius = 7,
 		Color = Color3.fromRGB(90, 240, 130),
 		-- How long the victory banner holds before you are put back in.
@@ -600,131 +611,6 @@ local Config = {
 			Delay = 0.11,
 		},
 		-- Bright ascending sparkle for health.
-		Lives = {
-			--[[
-			Five lives, then game over.
-
-			Death costs something now, which is what makes the medkits and the
-			flashlight worth detouring for. Running out resets the run rather
-			than ejecting the player: the score is banked, the board is shown,
-			and they start again with a full five.
-		]]
-			Starting = 5,
-			Maximum = 5,
-			-- Extra lives scattered through the level. Capped at Maximum, so
-			-- collecting one at full lives leaves it on the floor for someone else.
-			PickupCount = 5,
-			PickupRadius = 7,
-			Color = Color3.fromRGB(255, 96, 120),
-		},
-
-		Respawn = {
-			-- Death is not instant-restart: you sit on the death screen until you
-			-- choose to go again, then get the same count-in as the match start so
-			-- you are never dropped straight back into a fight mid-thought.
-			PromptText = "CLICK TO RESPAWN",
-			CountdownPrefix = "RESPAWN IN",
-			-- Short pause before the prompt appears, so a death registers as a
-			-- death rather than as a flicker.
-			PromptDelay = 1.2,
-		},
-
-		Match = {
-			--[[
-			The start sequence.
-
-			Nothing spawns and nobody can move until every client reports that
-			it has finished loading. Dropping a player into a half-streamed
-			level and letting entities hunt them immediately is the difference
-			between a game starting and a game already having gone wrong.
-		]]
-			CountdownSteps = { "3", "2", "1" },
-			StepSeconds = 0.85,
-			GoText = "FIGHT!",
-			GoSeconds = 1.1,
-			-- Give up waiting for a client that never reports ready, so one bad
-			-- connection can't hold the server open forever.
-			ReadyTimeout = 45,
-		},
-
-		Cash = {
-			-- Dropped by every entity killed.
-			DropValue = 50,
-			PickupRadius = 7,
-			-- Drops vanish eventually so a long session doesn't litter the level
-			-- with hundreds of collectables.
-			Lifetime = 60,
-			Color = Color3.fromRGB(120, 235, 130),
-		},
-
-		Escape = {
-			--[[
-			The way out.
-
-			Placed at the open cell furthest from spawn, so escaping means
-			crossing the level rather than stumbling out of the room you
-			started in. It is the only thing in the maze that is lit green,
-			which makes it readable from a long way down a corridor without
-			needing a marker.
-		]]
-			BonusScore = 2500,
-			BonusCash = 750,
-			TriggerRadius = 7,
-			Color = Color3.fromRGB(90, 240, 130),
-			-- How long the victory banner holds before you are put back in.
-			CelebrationSeconds = 4,
-		},
-
-		Minimap = {
-			--[[
-			A radar rather than a rendered map: blips for the things that move
-			or matter, on a plain backdrop.
-
-			Drawing the maze itself would mean a frame per cell — a 49x49 grid
-			is 2401 of them — and this project has already been bitten once by
-			doing per-instance work at scale. Blips are pooled and reused, so
-			the cost is fixed regardless of how much is on screen.
-		]]
-			Size = 190,
-			Range = 130, -- studs shown from edge to edge
-			UpdateInterval = 0.12,
-			-- Rotating with the camera means "up" is always where you are facing,
-			-- which is what makes a radar readable while moving.
-			RotateWithCamera = true,
-			MaxBlips = 60,
-		},
-
-		Combat = {
-			--[[
-			How much punishment an entity takes, expressed in HITS rather than
-			in damage.
-
-			Per-weapon damage numbers made "how many shots does this take?"
-			depend on which gun you happened to find, and on which variant you
-			happened to meet — a Slender took twice as many rounds as a
-			Wanderer for no reason the player could see. These two rules apply
-			to every weapon and every variant, so the answer is always the same
-			and always legible.
-
-			Damage per body shot is derived from the target's own MaxHealth, so
-			this holds however a variant is statted.
-
-			Set UniformLethality false to go back to the per-weapon Damage and
-			HeadshotMultiplier values in WeaponConfig.
-		]]
-			UniformLethality = true,
-			HeadshotIsLethal = true,
-			BodyShotsToKill = 5,
-		},
-
-		Score = {
-			-- Multiplier applied to a kill's value when the killing shot was a
-			-- headshot. Kill value itself is per-variant, in Entity.Variants.
-			HeadshotMultiplier = 2,
-			-- Awarded for a headshot that doesn't kill, so precision always pays.
-			HeadshotBonus = 25,
-		},
-
 		Health = {
 			-- BASSBEND-Down 05 (APMOfficial), pitched up into a chime.
 			Id = "rbxassetid://9043357191",
