@@ -3,6 +3,11 @@
   "tree": {
     "$className": "DataModel",
 
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "Loading": { "$path": "src/loading" }
+    },
+
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Packages": { "$path": { "optional": "Packages" } },
@@ -32,8 +37,8 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Ambient": [0, 0, 0],
-        "OutdoorAmbient": [0, 0, 0],
+        "Ambient": [0.06, 0.055, 0.045],
+        "OutdoorAmbient": [0.06, 0.055, 0.045],
         "Brightness": 0,
         "ClockTime": 0,
         "GlobalShadows": true,

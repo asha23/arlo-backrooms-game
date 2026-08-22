@@ -219,32 +219,119 @@ local function onReload(player: Player)
 	end)
 end
 
+--[[
+	The only path by which a player receives a weapon.
+
+	Every weapon is unique: holding a Pistol means there is exactly one Pistol
+	instance across your Backpack and your character, forever. Routing all
+	grants through here is what makes that true — a check duplicated at each
+	call site drifts, and this is exactly how the starter pistol ended up
+	stacking on respawn.
+
+	Returns the tool the player now owns (existing or newly created) and whether
+	it was newly created, so callers can tell "here you go" from "you already
+	have one" without repeating the ownership check themselves.
+]]
+local function giveWeapon(player: Player, weaponId: string): (Tool?, boolean)
+	local stats = WeaponConfig.Weapons[weaponId]
+	if not stats then
+		return nil, false
+	end
+
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not backpack then
+		return nil, false
+	end
+
+	-- Already held, either stowed or in hand.
+	local held = backpack:FindFirstChild(stats.Name)
+	if held and held:IsA("Tool") then
+		return held, false
+	end
+	local character = player.Character
+	local equipped = character and character:FindFirstChild(stats.Name)
+	if equipped and equipped:IsA("Tool") then
+		return equipped, false
+	end
+
+	local tool = WeaponFactory.create(weaponId)
+	if not tool then
+		return nil, false
+	end
+	tool.Parent = backpack
+	pushAmmo(player, weaponId)
+	return tool, true
+end
+
+--- Drops a pickup at a world position that respawns after being taken.
+--[[
+	Builds the thing that sits on the floor waiting to be collected.
+
+	Critically this is a plain Model, NOT a Tool. A Tool parented into the
+	Workspace with a Handle gets Roblox's built-in pickup behaviour for free:
+	touching the handle equips it directly. That bypassed every ownership check
+	in this file (so weapons stacked up) and handed the player a Handle that was
+	still Anchored — welding the character to an immovable part and stopping
+	them dead. The floor display must be scenery and nothing else.
+]]
+local function buildDisplay(template: Tool, name: string): Model?
+	local model = Instance.new("Model")
+	model.Name = name
+
+	local handle: BasePart? = nil
+	for _, child in template:GetChildren() do
+		if not child:IsA("BasePart") then
+			continue
+		end
+		local clone = child:Clone()
+		-- Strip anything that could make it interactive.
+		for _, descendant in clone:GetDescendants() do
+			if descendant:IsA("Weld") or descendant:IsA("WeldConstraint") then
+				descendant:Destroy()
+			end
+		end
+		clone.Anchored = true
+		clone.CanCollide = false
+		clone.CanTouch = false
+		clone.CanQuery = false
+		clone.Parent = model
+		if child.Name == "Handle" then
+			handle = clone
+		end
+	end
+
+	if not handle then
+		model:Destroy()
+		return nil
+	end
+	model.PrimaryPart = handle
+	return model
+end
+
 --- Drops a pickup at a world position that respawns after being taken.
 local function placePickup(weaponId: string, position: Vector3, parent: Instance)
-	local pedestal = Instance.new("Part")
-	pedestal.Name = `Pickup_{weaponId}`
-	pedestal.Anchored = true
-	pedestal.CanCollide = false
-	pedestal.Size = Vector3.new(3, 0.2, 3)
-	pedestal.Transparency = 1
-	pedestal.CFrame = CFrame.new(position)
-	pedestal.Parent = parent
-
 	local template = WeaponFactory.create(weaponId)
 	if not template then
 		return
 	end
 
-	local display = template:Clone()
-	local displayHandle = display:FindFirstChild("Handle") :: BasePart?
+	local pedestal = Instance.new("Part")
+	pedestal.Name = `Pickup_{weaponId}`
+	pedestal.Anchored = true
+	pedestal.CanCollide = false
+	pedestal.CanTouch = false
+	pedestal.CanQuery = false
+	pedestal.Size = Vector3.new(3, 0.2, 3)
+	pedestal.Transparency = 1
+	pedestal.CFrame = CFrame.new(position)
+	pedestal.Parent = parent
 
-	local function show()
-		display.Parent = pedestal
-		if displayHandle then
-			displayHandle.Anchored = true
-			displayHandle.CFrame = pedestal.CFrame * CFrame.new(0, 1.2, 0)
-		end
+	local display = buildDisplay(template, `Display_{weaponId}`)
+	template:Destroy() -- only ever a blueprint; giveWeapon builds its own.
+	if not display then
+		return
 	end
+	display:PivotTo(pedestal.CFrame * CFrame.new(0, 1.2, 0))
 
 	-- A glow so pickups are findable in a dark maze.
 	local beacon = Instance.new("PointLight")
@@ -254,7 +341,7 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 	beacon.Parent = pedestal
 
 	local available = true
-	show()
+	display.Parent = pedestal
 
 	task.spawn(function()
 		while pedestal.Parent do
@@ -272,20 +359,12 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 					continue
 				end
 
-				local backpack = player:FindFirstChildOfClass("Backpack")
-				if not backpack then
+				-- Only consume the pickup if it actually handed over a weapon;
+				-- walking over a gun you already own leaves it on the floor.
+				local _, wasNew = giveWeapon(player, weaponId)
+				if not wasNew then
 					continue
 				end
-				-- One of each weapon is enough.
-				local alreadyHas = backpack:FindFirstChild(template.Name)
-					or (character and character:FindFirstChild(template.Name))
-				if alreadyHas then
-					continue
-				end
-
-				local given = template:Clone()
-				given.Parent = backpack
-				pushAmmo(player, weaponId)
 
 				available = false
 				display.Parent = nil
@@ -293,7 +372,7 @@ local function placePickup(weaponId: string, position: Vector3, parent: Instance
 				task.delay(SETTINGS.RespawnDelay, function()
 					if pedestal.Parent then
 						available = true
-						show()
+						display.Parent = pedestal
 						beacon.Enabled = true
 					end
 				end)
@@ -338,24 +417,23 @@ function WeaponService.start()
 
 	-- Give everyone a pistol to start with, so nobody is defenceless on spawn.
 	local function grantStarterWeapon(player: Player)
-		local backpack = player:WaitForChild("Backpack", 10)
-		if not backpack then
+		if not player:WaitForChild("Backpack", 10) then
 			return
 		end
-		-- Backpack contents survive a respawn, so without this check every
-		-- death would add another pistol to the hotbar.
-		local existing = backpack:FindFirstChild("Pistol")
-		local pistol = existing :: Tool? or WeaponFactory.create("Pistol")
-		if pistol then
-			pistol.Parent = backpack
-			-- Equip it straight away so players start armed rather than having
-			-- to find the hotbar. EquipTool needs the character's Humanoid, and
-			-- the character may not have finished loading yet.
-			local character = player.Character or player.CharacterAdded:Wait()
-			local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
-			if humanoid then
-				humanoid:EquipTool(pistol)
-			end
+
+		-- giveWeapon returns the existing pistol on a respawn rather than
+		-- adding a second one.
+		local pistol = giveWeapon(player, "Pistol")
+		if not pistol then
+			return
+		end
+
+		-- Equip it straight away so players start armed rather than having to
+		-- find the hotbar.
+		local character = player.Character or player.CharacterAdded:Wait()
+		local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+		if humanoid then
+			humanoid:EquipTool(pistol)
 		end
 		pushAmmo(player, "Pistol")
 	end

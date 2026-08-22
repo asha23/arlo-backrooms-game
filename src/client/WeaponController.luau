@@ -95,13 +95,28 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 		_hitmarker = hitmarker,
 	}, WeaponController)
 
+	--[[
+		Two independent paths drive the trigger, because either one alone has a
+		hole.
+
+		Raw InputBegan is the only way to catch the middle and right buttons,
+		but it can be swallowed: `gameProcessedEvent` is true whenever anything
+		in the UI layer claims the click, and a locked first-person cursor sits
+		permanently over the centre of the screen. So mouse buttons here are
+		deliberately NOT gated on `processed` — only keyboard input is, so that
+		typing somewhere doesn't trigger a reload.
+
+		Tool.Activated is Roblox's own "the player used the thing in their hand"
+		signal. It survives cases raw input doesn't and covers touch and gamepad
+		for free, but only reports the primary button.
+
+		Double-firing isn't a risk: tryFire is rate-limited, so two triggers in
+		the same frame produce one shot.
+	]]
 	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed then
-			return
-		end
 		if FIRE_BUTTONS[input.UserInputType] then
 			self:setTrigger(true)
-		elseif input.KeyCode == Enum.KeyCode.R then
+		elseif not processed and input.KeyCode == Enum.KeyCode.R then
 			self:requestReload()
 		end
 	end)
@@ -111,6 +126,37 @@ function WeaponController.new(hitmarker: Frame?): WeaponController
 			self:setTrigger(false)
 		end
 	end)
+
+	-- Bind Tool.Activated/Deactivated on whatever weapon gets equipped.
+	local function bindTool(tool: Tool)
+		if not tool:FindFirstChild("WeaponId") then
+			return
+		end
+		tool.Activated:Connect(function()
+			self:setTrigger(true)
+		end)
+		tool.Deactivated:Connect(function()
+			self:setTrigger(false)
+		end)
+	end
+
+	local function watchCharacter(character: Model)
+		for _, child in character:GetChildren() do
+			if child:IsA("Tool") then
+				bindTool(child)
+			end
+		end
+		character.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") then
+				bindTool(child)
+			end
+		end)
+	end
+
+	player.CharacterAdded:Connect(watchCharacter)
+	if player.Character then
+		watchCharacter(player.Character)
+	end
 
 	Remotes.AmmoChanged().OnClientEvent:Connect(function(weaponId, magazine, reserve, reloading)
 		-- Only track the weapon actually in hand.

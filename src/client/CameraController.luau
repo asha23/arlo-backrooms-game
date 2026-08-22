@@ -40,6 +40,28 @@ function CameraController.start()
 	-- clamps, so re-assert them each time.
 	player.CharacterAdded:Connect(applyCameraMode)
 
+	--[[
+		Roblox's PlayerModule (which owns the real camera) is injected and
+		initialised asynchronously, and it writes the zoom distances when it
+		comes up. Setting them once before that happens is a race we can lose
+		silently — the symptom is a third-person camera with no error anywhere.
+		Re-assert for a few seconds, and stop as soon as it sticks.
+	]]
+	task.spawn(function()
+		for _ = 1, 30 do
+			task.wait(0.2)
+			local settled = player.CameraMode
+					== (if SETTINGS.FirstPerson
+						then Enum.CameraMode.LockFirstPerson
+						else Enum.CameraMode.Classic)
+				and player.CameraMaxZoomDistance <= 0.51
+			if settled and SETTINGS.FirstPerson then
+				break
+			end
+			applyCameraMode()
+		end
+	end)
+
 	-- On touch devices Roblox supplies its own drag-to-look camera, so we leave
 	-- the mouse lock alone there.
 	if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
