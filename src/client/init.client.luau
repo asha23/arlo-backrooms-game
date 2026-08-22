@@ -69,7 +69,6 @@ LightFlicker.start()
 --- Runs on its own thread: `attach` waits on character parts that may not exist yet.
 local function onCharacterAdded(character: Model)
 	task.spawn(function()
-		flashlight:attach(character)
 		sprint:attach(character)
 	end)
 end
@@ -135,7 +134,6 @@ end)
 
 RunService.RenderStepped:Connect(function(deltaTime)
 	sprint:update(deltaTime)
-	flashlight:update(deltaTime)
 	weapons:update()
 
 	local character = player.Character
@@ -143,8 +141,9 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	local health = if humanoid then humanoid.Health else 0
 	local maxHealth = if humanoid then humanoid.MaxHealth else 100
 
-	hud:update(health, maxHealth, flashlight.battery, sprint.stamina)
+	hud:update(health, maxHealth, flashlight:fraction() * 100, sprint.stamina)
 	hud:setAmmoText(weapons:ammoText())
+	hud:setFlashlightWarning(flashlight:isLow())
 end)
 
 print("[Client] ready — WASD move, Shift sprint, F flashlight, any mouse button fires, R reload")

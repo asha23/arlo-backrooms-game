@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CashService = require(script.Parent.CashService)
 local Config = require(ReplicatedStorage.Shared.Config)
 local EntitySounds = require(script.Parent.EntitySounds)
+local FlashlightService = require(script.Parent.FlashlightService)
 local MatchService = require(script.Parent.MatchService)
 
 local SETTINGS = Config.Entity
@@ -438,6 +439,10 @@ type Brain = {
 	lastSeenAt: Vector3?,
 	lostAt: number,
 	alerted: boolean,
+	-- When the torch last caught it. Kept as a timestamp rather than a flag so
+	-- it keeps backing away for a moment after leaving the beam, instead of
+	-- snapping straight back to hunting the instant the light moves off.
+	scaredUntil: number,
 }
 
 local brains: { [Model]: Brain } = {}
@@ -456,6 +461,33 @@ local function broadcastAlert(origin: Vector3, position: Vector3, source: Model)
 		brain.lastSeenAt = position
 		brain.lostAt = os.clock()
 		brain.alerted = true
+	end
+end
+
+--[[
+	Blue flashing while an entity is fleeing.
+
+	The colour is restored from the variant's own build rather than remembered
+	per part, so a rig that changes appearance later can't leave one stuck blue.
+]]
+local function setFleeTint(model: Model, variant: Variant, lit: boolean)
+	local build = variant.Build
+	for _, part in model:GetChildren() do
+		if not part:IsA("BasePart") or part.Name == "HumanoidRootPart" then
+			continue
+		end
+		if part.Name == "Eye" then
+			continue
+		end
+		if lit then
+			part.Color = Config.Flashlight.FleeColor
+		elseif part.Name == "Torso" then
+			part.Color = build.BodyColor
+		elseif part.Name == "Head" then
+			part.Color = build.HeadColor
+		else
+			part.Color = build.LimbColor
+		end
 	end
 end
 
@@ -524,15 +556,52 @@ end
 local function runAi(model: Model, sounds: EntitySounds.EntitySounds, variant: Variant)
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = model.PrimaryPart :: BasePart
-	local brain: Brain = { lastSeenAt = nil, lostAt = 0, alerted = false }
+	local brain: Brain = { lastSeenAt = nil, lostAt = 0, alerted = false, scaredUntil = 0 }
 	brains[model] = brain
 
 	local lastAttack = 0
 	local lastTick = os.clock()
 
+	local flashPhase = false
+	local nextFlash = 0
+
 	while model.Parent and humanoid.Health > 0 do
 		local target, distance = nearestPlayer(root.Position)
 		local now = os.clock()
+
+		--[[
+			Torchlight overrides everything else. An entity caught in a beam
+			turns and backs away at reduced speed — slow enough to stay a
+			presence in the room, which a sprinting retreat would not be.
+		]]
+		local threat = FlashlightService.threatFor(root.Position)
+		if threat then
+			brain.scaredUntil = now + Config.Flashlight.FleeMemory
+		end
+
+		if now < brain.scaredUntil then
+			local away = root.Position - (threat or root.Position - Vector3.new(0, 0, 1))
+			if away.Magnitude < 0.1 then
+				away = root.CFrame.LookVector * -1
+			end
+			humanoid.WalkSpeed = variant.WalkSpeed * Config.Flashlight.FleeSpeedMultiplier
+			humanoid:MoveTo(root.Position + away.Unit * 18)
+
+			if now >= nextFlash then
+				nextFlash = now + Config.Flashlight.FlashInterval
+				flashPhase = not flashPhase
+				setFleeTint(model, variant, flashPhase)
+			end
+
+			sounds:update(now - lastTick, false)
+			lastTick = now
+			task.wait(0.12)
+			continue
+		elseif flashPhase then
+			-- Left the beam: put the colours back.
+			flashPhase = false
+			setFleeTint(model, variant, false)
+		end
 
 		--[[
 			Cull anything that has drifted out of everyone's world. Pathfinding

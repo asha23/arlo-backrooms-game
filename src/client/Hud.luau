@@ -28,6 +28,7 @@ export type Hud = typeof(setmetatable(
 		_headshot: TextLabel,
 		_countdown: TextLabel,
 		_deathPrompt: TextLabel,
+		_torchWarning: TextLabel,
 	},
 	Hud
 ))
@@ -182,6 +183,22 @@ function Hud.new(): Hud
 	deathPrompt.ZIndex = 10
 	deathPrompt.Parent = gui
 
+	-- Low battery warning. Sits under the crosshair so it's unmissable without
+	-- covering what you're aiming at.
+	local torchWarning = Instance.new("TextLabel")
+	torchWarning.Name = "FlashlightWarning"
+	torchWarning.Size = UDim2.new(1, 0, 0, 26)
+	torchWarning.Position = UDim2.new(0, 0, 0.5, 60)
+	torchWarning.BackgroundTransparency = 1
+	torchWarning.Font = Enum.Font.GothamBold
+	torchWarning.TextSize = 20
+	torchWarning.TextColor3 = Color3.fromRGB(255, 190, 70)
+	torchWarning.TextStrokeTransparency = 0.4
+	torchWarning.Text = "FLASHLIGHT LOW!"
+	torchWarning.Visible = false
+	torchWarning.ZIndex = 8
+	torchWarning.Parent = gui
+
 	-- Headshot callout, just above the crosshair.
 	local headshot = Instance.new("TextLabel")
 	headshot.Name = "Headshot"
@@ -224,6 +241,7 @@ function Hud.new(): Hud
 		_headshot = headshot,
 		_countdown = countdown,
 		_deathPrompt = deathPrompt,
+		_torchWarning = torchWarning,
 		_bars = {
 			HEALTH = makeBar(gui, "HEALTH", 0, Color3.fromRGB(200, 70, 65)),
 			BATTERY = makeBar(gui, "BATTERY", 1, Color3.fromRGB(120, 170, 220)),
@@ -289,6 +307,20 @@ function Hud.setDeathPrompt(self: Hud, text: string?)
 	local label = self._deathPrompt
 	label.Text = text or ""
 	label.Visible = text ~= nil and text ~= ""
+end
+
+--[[
+	Low-battery warning. Pulsed rather than static: a warning that just sits
+	there stops being read after the first few seconds.
+]]
+function Hud.setFlashlightWarning(self: Hud, low: boolean)
+	local label = self._torchWarning
+	if not low then
+		label.Visible = false
+		return
+	end
+	label.Visible = true
+	label.TextTransparency = 0.25 + 0.35 * math.abs(math.sin(os.clock() * 4))
 end
 
 function Hud.setCountdown(self: Hud, text: string)

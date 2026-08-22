@@ -66,6 +66,8 @@ local MANIFEST: { [string]: string } = {
 	Died = "RemoteEvent",
 	RequestRespawn = "RemoteEvent",
 	Escaped = "RemoteEvent",
+	ToggleFlashlight = "RemoteEvent",
+	FlashlightState = "RemoteEvent",
 }
 
 local Remotes = {}
@@ -139,6 +141,17 @@ end
 -- Server -> Client: you reached the exit.
 function Remotes.Escaped(): RemoteEvent
 	return get("Escaped", "RemoteEvent")
+end
+
+-- Client -> Server: switch the torch on or off.
+function Remotes.ToggleFlashlight(): RemoteEvent
+	return get("ToggleFlashlight", "RemoteEvent")
+end
+
+-- Server -> Client: whether you have a torch, whether it is lit, and how much
+-- battery is left. The server owns all three, since the entities react to it.
+function Remotes.FlashlightState(): RemoteEvent
+	return get("FlashlightState", "RemoteEvent")
 end
 
 return Remotes

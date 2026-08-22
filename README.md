@@ -88,7 +88,19 @@ value than a mouse.
   is genuinely unlit.
 - **Flickering fluorescents.** Client-side, so each player sees a different room.
 - **Sprint** (hold Shift) with stamina.
-- **Flashlight** (press F) with a draining battery.
+- **Flashlight**, and it is the only thing that keeps the entities off you.
+  Four in the entire level, roughly one per 270 open cells, so finding one is a
+  reprieve rather than a given. Anything caught in the beam turns blue and backs
+  away slowly — slow enough to stay a presence in the room, which a sprinting
+  retreat would not be. A full charge lasts about two minutes of continuous use
+  and warns you for the last thirty seconds.
+
+  It welds to the **left** arm rather than being a Tool. Roblox Tools equip to
+  the right hand, so making it one would force a choice between carrying light
+  and carrying a weapon — the wrong choice to impose in a game about shooting
+  things in the dark. Ownership, on/off and battery are all server-side, since
+  a client that decided when its own torch was lit would be a client that
+  decided when the monsters ran away.
 - **A way out.** An exit sits at the open cell furthest from spawn — around 280
   studs away in a straight line, and several times that through the maze. It is
   the only green light in a yellow level, so it reads from the far end of a

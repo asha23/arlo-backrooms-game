@@ -748,11 +748,48 @@ local Config = {
 	},
 
 	Flashlight = {
-		Range = 60,
-		Angle = 55,
-		Brightness = 2,
+		--[[
+			The flashlight is a pickup, not a starting item, and it is
+			deliberately scarce: four in the whole level. It is the only thing
+			that makes the entities back off, so finding one should feel like a
+			reprieve rather than a given.
+
+			It attaches to the LEFT arm rather than being a Tool. Roblox Tools
+			equip to the right hand, and putting the torch there would mean
+			choosing between light and a weapon. Welding it to the left arm
+			lets you carry both, which is the whole point of a horror game
+			where you have to shoot in the dark.
+		]]
+		SpawnCount = 4,
+
 		MaxBattery = 100,
-		BatteryDrain = 1.2, -- per second while on
+		-- Per second while switched on. At this rate a full torch lasts a
+		-- little over two minutes of continuous use.
+		DrainRate = 0.8,
+		-- Fraction of battery at which the client starts warning.
+		LowBatteryAt = 0.25,
+
+		-- The beam itself.
+		Range = 70,
+		Angle = 55,
+		Brightness = 3,
+
+		--[[
+			What it does to the entities.
+
+			Anything caught in the beam turns and walks away rather than
+			sprinting: a fleeing entity you cannot catch is just an entity that
+			has left, whereas one backing off slowly stays a presence in the
+			room. Pac-Man's ghosts do the same thing and for the same reason.
+		]]
+		ScareRange = 55,
+		-- Half-angle of the cone that counts as "in the beam", in degrees.
+		ScareAngle = 42,
+		FleeSpeedMultiplier = 0.55,
+		-- How long an entity keeps running after it leaves the beam.
+		FleeMemory = 2.5,
+		FleeColor = Color3.fromRGB(70, 140, 255),
+		FlashInterval = 0.18,
 	},
 }
 
