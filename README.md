@@ -134,7 +134,13 @@ value than a mouse.
     than swinging rigidly. Fastest and least durable of the three. Both heads
     count for headshots.
 
-  Both patrol via `PathfindingService`, chase on sight, search your last known
+  All three have a mouth: a dark cavity, a fixed upper row of wedge fangs and a
+  lower row on a hinged jaw that gnashes — faster while moving, so something
+  that has seen you is visibly more agitated than something that has not. Every
+  part of the face carries an `IsHead` attribute, so a shot placed at the teeth
+  still counts as a headshot rather than hitting a tooth in front of the head.
+
+  All patrol via `PathfindingService`, chase on sight, search your last known
   position when they lose you, sway constantly so they never read as props, and
   take damage — including headshots. They scream when they die.
 - **HUD** with score, health/battery/stamina bars, crosshair, hitmarker, ammo

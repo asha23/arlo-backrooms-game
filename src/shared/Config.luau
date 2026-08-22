@@ -343,6 +343,28 @@ local Config = {
 		},
 
 		--[[
+			Teeth.
+
+			A row top and bottom on every head, with the lower row on a hinged
+			jaw that gnashes. The gnashing is what sells it: a static mouth full
+			of teeth is a texture, whereas one that keeps working at nothing
+			reads as an appetite.
+
+			It gnashes faster while moving, so a thing that has seen you is
+			visibly more agitated than one that has not.
+		]]
+		Teeth = {
+			PerRow = 7,
+			Size = Vector3.new(0.1, 0.24, 0.1),
+			Color = Color3.fromRGB(238, 232, 214),
+			MawColor = Color3.fromRGB(10, 8, 9),
+			-- Degrees the jaw drops at full gnash, and cycles per second.
+			GnashAngle = 15,
+			GnashSpeed = 2.2,
+			MovingGnashSpeed = 6.5,
+		},
+
+		--[[
 			Limb animation. Roblox only animates a rig you give an Animator and
 			an uploaded animation asset; a procedural cycle driven straight off
 			the Motor6D joints needs neither, and reads correctly at any walk

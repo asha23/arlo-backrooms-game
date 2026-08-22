@@ -61,6 +61,93 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 end
 
 --[[
+	Gives a head a mouth: a dark cavity, a fixed upper row of fangs, and a lower
+	row on a hinged jaw that the animator gnashes.
+
+	Teeth are WedgeParts so they actually come to a point — a row of little
+	boxes reads as a grille rather than as a mouth. The jaw is welded with a
+	named weld so the animator can find it and drive its C0.
+]]
+local function buildMaw(model: Model, head: BasePart, build: any, suffix: string)
+	local teeth = SETTINGS.Teeth
+	local headSize = head.Size
+	local faceZ = -headSize.Z / 2
+	local mouthY = -headSize.Y * 0.14
+	local rowWidth = headSize.X * 0.74
+
+	local maw =
+		newPart(`Maw{suffix}`, Vector3.new(rowWidth, headSize.Y * 0.3, 0.06), teeth.MawColor, model)
+	maw.Material = Enum.Material.SmoothPlastic
+	maw.CanCollide = false
+	maw.Massless = true
+	local mawOffset = CFrame.new(0, mouthY, faceZ - 0.02)
+	maw.CFrame = head.CFrame * mawOffset
+	local mawWeld = Instance.new("Weld")
+	mawWeld.Part0 = head
+	mawWeld.Part1 = maw
+	mawWeld.C0 = mawOffset
+	mawWeld.Parent = head
+
+	-- The jaw is an invisible carrier: the lower teeth hang off it, and moving
+	-- it moves them together.
+	local jaw = newPart(`Jaw{suffix}`, Vector3.new(rowWidth, 0.06, 0.08), build.HeadColor, model)
+	jaw.Transparency = 1
+	jaw.CanCollide = false
+	jaw.Massless = true
+	local jawOffset = CFrame.new(0, mouthY - headSize.Y * 0.13, faceZ - 0.03)
+	jaw.CFrame = head.CFrame * jawOffset
+	local jawWeld = Instance.new("Weld")
+	jawWeld.Name = `JawWeld{suffix}`
+	jawWeld.Part0 = head
+	jawWeld.Part1 = jaw
+	jawWeld.C0 = jawOffset
+	jawWeld.Parent = head
+
+	local count = teeth.PerRow
+	for index = 1, count do
+		local t = (index - 0.5) / count - 0.5
+		local x = t * rowWidth
+
+		-- Upper fang, rolled 180 degrees so its point faces down.
+		local upper = Instance.new("WedgePart")
+		upper.Name = `Tooth{suffix}U{index}`
+		upper.Size = teeth.Size
+		upper.Color = teeth.Color
+		upper.Material = Enum.Material.SmoothPlastic
+		upper.CanCollide = false
+		upper.Massless = true
+		upper:SetAttribute("IsHead", true)
+		upper.Parent = model
+		local upperOffset = CFrame.new(x, mouthY + teeth.Size.Y * 0.35, faceZ - 0.04)
+			* CFrame.Angles(0, 0, math.pi)
+		upper.CFrame = head.CFrame * upperOffset
+		local uw = Instance.new("Weld")
+		uw.Part0 = head
+		uw.Part1 = upper
+		uw.C0 = upperOffset
+		uw.Parent = head
+
+		-- Lower fang, point up, hanging off the jaw so it moves with it.
+		local lower = Instance.new("WedgePart")
+		lower.Name = `Tooth{suffix}L{index}`
+		lower.Size = teeth.Size
+		lower.Color = teeth.Color
+		lower.Material = Enum.Material.SmoothPlastic
+		lower.CanCollide = false
+		lower.Massless = true
+		lower:SetAttribute("IsHead", true)
+		lower.Parent = model
+		local lowerOffset = CFrame.new(x, teeth.Size.Y * 0.35, -0.01)
+		lower.CFrame = jaw.CFrame * lowerOffset
+		local lw = Instance.new("Weld")
+		lw.Part0 = jaw
+		lw.Part1 = lower
+		lw.C0 = lowerOffset
+		lw.Parent = jaw
+	end
+end
+
+--[[
 	Builds the rig.
 
 	The part names matter: Roblox's Humanoid requires "HumanoidRootPart",
@@ -319,6 +406,11 @@ local function buildRig(variant: Variant): Model
 		end
 	end
 
+	buildMaw(model, head, build, "")
+	if secondHead then
+		buildMaw(model, secondHead :: BasePart, build, "2")
+	end
+
 	local worth = Instance.new("IntValue")
 	worth.Name = "ScoreValue"
 	worth.Value = variant.Score
@@ -374,7 +466,11 @@ local function groundRig(model: Model, humanoid: Humanoid)
 			if not part:IsA("BasePart") or part.Transparency >= 1 then
 				continue
 			end
-			if part.Name:match("^Tentacle") or part.Name:match("^Tendril") then
+			if
+				part.Name:match("^Tentacle")
+				or part.Name:match("^Tendril")
+				or part.Name:match("^Tooth")
+			then
 				continue
 			end
 			lowest = math.min(lowest, part.Position.Y - part.Size.Y / 2)
@@ -429,6 +525,17 @@ local function gatherTentacles(
 	return found
 end
 
+--- The jaw welds, so the animator can hinge them. One per head.
+local function gatherJaws(model: Model): { { weld: Weld, base: CFrame } }
+	local found = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Weld") and descendant.Name:match("^JawWeld") then
+			table.insert(found, { weld = descendant, base = descendant.C0 })
+		end
+	end
+	return found
+end
+
 local function animateRig(model: Model, humanoid: Humanoid)
 	local torso = model:FindFirstChild("Torso") :: BasePart?
 	local root = model.PrimaryPart
@@ -461,6 +568,10 @@ local function animateRig(model: Model, humanoid: Humanoid)
 	local tentacles = gatherTentacles(model)
 	local waveAngle = math.rad(24)
 	local waveSpeed = 3.4
+
+	local jaws = gatherJaws(model)
+	local teeth = SETTINGS.Teeth
+	local gnashAngle = math.rad(teeth.GnashAngle)
 
 	task.spawn(function()
 		local phase = rng:NextNumber(0, math.pi * 2)
@@ -495,6 +606,22 @@ local function animateRig(model: Model, humanoid: Humanoid)
 				lastPosition.Z
 			)).Magnitude
 			lastPosition = position
+
+			--[[
+				Gnashing. Faster while moving, so something that has seen you is
+				visibly more agitated than something that has not — and it never
+				stops entirely, because a mouth that only works when the thing
+				is walking looks mechanical.
+			]]
+			if #jaws > 0 then
+				local rate = if travelled > 0.02 then teeth.MovingGnashSpeed else teeth.GnashSpeed
+				-- abs(sin) so the jaw snaps shut and drops open rather than
+				-- swinging past the closed position.
+				local open = math.abs(math.sin(clock * rate * math.pi))
+				for _, jaw in jaws do
+					jaw.weld.C0 = jaw.base * CFrame.Angles(gnashAngle * open, 0, 0)
+				end
+			end
 
 			if travelled > 0.02 then
 				phase += (travelled / stride) * math.pi
@@ -627,14 +754,22 @@ local function setFleeTint(model: Model, variant: Variant, lit: boolean)
 		if not part:IsA("BasePart") or part.Name == "HumanoidRootPart" then
 			continue
 		end
-		if part.Name == "Eye" then
+		--[[
+			Eyes, teeth and the mouth cavity keep their own colours. They are
+			restored by name below, and anything the restore branch does not
+			recognise comes back as a limb — which is how Head2 would have ended
+			up limb-coloured after a single flee, and how the teeth would have
+			come back grey.
+		]]
+		if part.Name == "Eye" or part.Name:match("^Tooth") or part.Name:match("^Maw") then
 			continue
 		end
 		if lit then
 			part.Color = Config.Flashlight.FleeColor
 		elseif part.Name == "Torso" then
 			part.Color = build.BodyColor
-		elseif part.Name == "Head" then
+		elseif part.Name:match("^Head") or part.Name:match("^Jaw") then
+			-- Head, Head2 and the jaw all take the head colour.
 			part.Color = build.HeadColor
 		else
 			part.Color = build.LimbColor
