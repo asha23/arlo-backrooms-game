@@ -1,11 +1,13 @@
-# arlo-backrooms-game
+# Fight to Escape the Backrooms
 
-A Roblox horror-exploration game. Level 0: an endlessly looping maze of yellow
-rooms, buzzing fluorescents, and nothing else.
+A Roblox horror shooter. You wake in Level 0 — an endless maze of stained yellow
+corridors under failing fluorescents — with five lives, a pistol, and something
+in the dark that hunts in packs. There is a way out. It is as far from where you
+started as the level allows.
 
 ## Getting set up
 
-Tools are pinned in `rokit.toml` and installed automatically:
+Tools are pinned in `rokit.toml` and install themselves:
 
 ```bash
 rokit install
@@ -19,188 +21,225 @@ rojo serve                                      # live-sync into Studio
 ```
 
 1. Run `rojo build` once, then open `build.rbxl` in Roblox Studio.
-2. Run `rojo serve`, and in Studio use the Rojo plugin -> Connect.
+2. Run `rojo serve`, and in Studio use the Rojo plugin → Connect.
 3. Every save to `src/` now syncs into the open place. Hit Play to test.
 
-Formatting and linting:
+**Open `build.rbxl` itself, not a place made from a Roblox template.** Rojo syncs
+into whatever place is open rather than replacing it, so a template's grey
+baseplate and default spawn end up underneath the generated level. `WorkspaceCleaner`
+strips both at startup and logs what it removed, but starting from the clean
+build avoids the question.
+
+Changing a *service* or a Workspace/Lighting property in `default.project.json`
+needs the place reopened — Rojo cannot add a service to a place that is already
+open. Plain script edits sync live and need no restart.
+
+Checks:
 
 ```bash
 stylua src/       # format
 selene src/       # lint
 ```
 
-> **Note on selene's version.** It's pinned to `0.26.1` rather than latest.
-> From `0.27.0` onward upstream builds its single macOS release asset on an
-> Apple Silicon runner, so the published binary is arm64-only and won't run on
-> an Intel Mac. `0.26.1` is the last release with an x86_64 macOS build. If this
-> project is only ever worked on from Apple Silicon, bump it back to latest.
+Type-checking needs `luau-lsp` and a sourcemap:
+
+```bash
+rojo sourcemap default.project.json -o sourcemap.json
+luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/
+```
+
+That catches a category `selene` cannot — selene lints, it does not type-check.
+Several real bugs in this project were found only by the type-checker.
+
+> **selene is pinned to 0.26.1**, not latest. From 0.27.0 upstream builds its
+> single macOS release asset on an Apple Silicon runner, so the published binary
+> is arm64-only and will not run on an Intel Mac. 0.26.1 is the last release with
+> an x86_64 macOS build. On Apple Silicon, bump it.
 
 ## Layout
 
-| Path                | Becomes                                  |
-| ------------------- | ---------------------------------------- |
-| `src/shared/`       | `ReplicatedStorage.Shared`               |
-| `src/server/`       | `ServerScriptService.Server` (a Script)  |
-| `src/client/`       | `StarterPlayerScripts.Client` (a LocalScript) |
-| `Packages/`         | Wally dependencies (optional, gitignored) |
+| Path            | Becomes                                       |
+| --------------- | --------------------------------------------- |
+| `src/shared/`   | `ReplicatedStorage.Shared`                    |
+| `src/server/`   | `ServerScriptService.Server` (a Script)       |
+| `src/client/`   | `StarterPlayerScripts.Client` (a LocalScript) |
+| `src/loading/`  | `ReplicatedFirst.Loading` (a LocalScript)     |
+| `Packages/`     | Wally dependencies (optional, gitignored)     |
 
-`src/shared/Config.luau` holds every tuning value — level size, walk speeds,
-sanity drain rates. Start there when you want to change how the game feels.
+**`src/shared/Config.luau` holds every tuning value in the game** — level size,
+light brightness, weapon feel, entity aggression, spawn counts. Start there.
 
 ## Controls
 
-**Desktop** — the camera is locked to first person, so the mouse aims directly
-and the crosshair always points where you're looking.
+**Desktop** — the camera is locked to first person, so the mouse aims directly.
 
-| Input     | Action                |
-| --------- | --------------------- |
-| Mouse            | Aim                   |
-| WASD             | Move                  |
-| Shift            | Sprint (uses stamina) |
-| F                | Toggle flashlight     |
-| Any mouse button | Fire                  |
-| R                | Reload                |
-| 1/2/3            | Equip from backpack   |
+| Input            | Action                          |
+| ---------------- | ------------------------------- |
+| Mouse            | Aim                             |
+| WASD             | Move                            |
+| Shift            | Sprint (uses stamina)           |
+| F                | Toggle flashlight               |
+| Any mouse button | Fire                            |
+| Right mouse      | Scope (sniper only — aims, does not fire) |
+| R                | Reload                          |
+| 1–4              | Equip from backpack             |
 
-You spawn with the pistol already equipped. The Roblox chat window is hidden by
-default — it steals keyboard focus, which matters when movement is on WASD.
+**Touch** — Roblox supplies the thumbstick, jump and drag-to-look; we add FIRE,
+AIM, RELOAD, SPRINT and LIGHT. FIRE also respawns you from the death screen:
+touch buttons set `gameProcessedEvent`, so a tap on FIRE never reaches the global
+input handler, and without that a mobile player would have to find a bare patch
+of screen to tap. The HUD rearranges on touch to clear the thumbstick, the fire
+buttons and the radar.
 
-**Touch** — Roblox supplies the movement thumbstick, the jump button and
-drag-to-look; we add FIRE (hold to keep firing), AIM (hold, for the sniper
-scope), RELOAD, SPRINT (a toggle) and LIGHT. FIRE also respawns you from the
-death screen: touch buttons set `gameProcessedEvent`, so a tap on FIRE never
-reaches the global input handler, and without that a mobile player would have
-had to find a bare patch of screen to tap. The HUD moves to the top of the screen so it clears the thumbstick and
-the fire button. All four drive the same methods the keyboard bindings do, so
-touch is never a second implementation of the game's rules.
+Sensitivity lives in `Config.Camera`. Note that `Scope.Sensitivity` is a
+*multiplier* on the base, so lowering the base slows the scope too.
 
-Set `Config.Camera.FirstPerson = false` for Roblox's third-person orbit camera,
-and `Config.Camera.Sensitivity` to taste — trackpads generally want a higher
-value than a mouse.
+## The level
 
-## What's implemented
+A 49×49 grid of 9-stud cells — about 441 studs across — carved by randomised
+depth-first search, with a few walls knocked through for loops and the odd wider
+room. Roughly **50% wall coverage** and 2.4 open neighbours per tile: corridors
+and dead ends, not open floor. Ceilings are 12 studs. A new seed every server
+start; pin one with `Config.Level.Seed`.
 
-- **Procedural Level 0.** A randomised depth-first maze with extra loops and
-  open halls carved in, wrapped in a sealed perimeter. New seed every server
-  start (pin one via `Config.Level.Seed`).
-- **Lighting that is dim, never black.** A fixture every three cells means every
-  open cell in the level is within 26 studs of a light — verified by simulating
-  the generator, not by eye. Flickering fixtures *dim* rather than switch off,
-  and about 28% are dead on arrival: bright enough to make out the walls, too
-  dim to count as safety. Around 40% of the level drains sanity while 0% of it
-  is genuinely unlit.
-- **Flickering fluorescents.** Client-side, so each player sees a different room.
-- **Sprint** (hold Shift) with stamina.
-- **Flashlight**, and it is the only thing that keeps the entities off you.
-  Four in the entire level, roughly one per 270 open cells, so finding one is a
-  reprieve rather than a given. Anything caught in the beam turns blue and backs
-  away slowly — slow enough to stay a presence in the room, which a sprinting
-  retreat would not be. A full charge lasts about two minutes of continuous use
-  and warns you for the last thirty seconds.
+### Lighting
 
-  It welds to the **left** arm rather than being a Tool. Roblox Tools equip to
-  the right hand, so making it one would force a choice between carrying light
-  and carrying a weapon — the wrong choice to impose in a game about shooting
-  things in the dark. Ownership, on/off and battery are all server-side, since
-  a client that decided when its own torch was lit would be a client that
-  decided when the monsters ran away.
-- **A way out.** An exit sits at the open cell furthest from spawn — around 280
-  studs away in a straight line, and several times that through the maze. It is
-  the only green light in a yellow level, so it reads from the far end of a
-  corridor without needing a HUD marker. Reaching it pays 2500 score and $750,
-  shows a banner, and returns you to the entrance for another run.
-- **Radar**, top right. Entities, weapons, medkits, cash and the exit, rotated
-  so up is where you are facing. Blips come from a fixed pool that is created
-  once and reused, so the cost does not grow with how much is out there —
-  drawing the maze itself would have meant a frame per cell, 2401 of them.
-- **Scoring.** Kills and headshots, tracked server-side and exposed both to the
-  HUD and as `leaderstats`, so the player list doubles as a scoreboard. A kill's
-  value is read off the rig, so a new variant scores correctly without touching
-  the weapon code. Headshots pay double on a kill, plus a bonus when they don't.
-- **Weapons.** Pistol, Machine Gun and Sniper Rifle, scattered as pickups
-  through the maze and rebuilt from primitives (no binary model assets). Stats
-  live in `src/shared/WeaponConfig.luau`. Everyone spawns with a pistol.
-- **Health.** Medkits scattered through the maze restore you to full on contact.
-  Weapons and medkits draw from one shuffled position pool, so two pickups can
-  never share a tile.
-- **Hostiles**, in two variants defined in `Config.Entity.Variants`:
-  - *Wanderer* — nine studs of nothing much, pale blank head, dark body.
-  - *Slender* — rarer, ten studs, black suit, bright featureless head, arms
-    past the knees, and four tendrils off the back. Twice the health, slower to
-    start, faster once it has you.
-  - *Crawler* — four studs, half the height of a Wanderer, with **two heads**
-    and **tentacles** where its arms should be. The tentacles are a welded chain
-    whose segments each lag the one above, so movement travels down them rather
-    than swinging rigidly. Fastest and least durable of the three. Both heads
-    count for headshots.
+Three separate things decide how bright this level looks, and tuning one in
+isolation achieves very little:
 
-  All three have a mouth: a dark cavity, a fixed upper row of wedge fangs and a
-  lower row on a hinged jaw that gnashes — faster while moving, so something
-  that has seen you is visibly more agitated than something that has not. Every
-  part of the face carries an `IsHead` attribute, so a shot placed at the teeth
-  still counts as a headshot rather than hitting a tooth in front of the head.
+1. `Lighting.Ambient` — applied at runtime by `LightingService`
+2. The fixture **PointLights**
+3. The **emissive colour of the Neon fixture panels** — a Neon part's apparent
+   brightness *is* its colour, unaffected by any light setting
 
-  All patrol via `PathfindingService`, chase on sight, search your last known
-  position when they lose you, sway constantly so they never read as props, and
-  take damage — including headshots. They scream when they die.
-- **HUD** with score, health/battery/stamina bars, crosshair, hitmarker, ammo
-  readout, headshot callout, and a vignette that closes in as health drops.
+**`Config.Level.LightScale` multiplies all three.** Halve it and the whole level
+halves. That is the dial to reach for.
 
-## Weapons
+Two things that are easy to get wrong here, both learned the hard way:
 
-| | Mode | Rate | Magazine | Reserve | Recoil |
-| --- | --- | --- | --- | --- | --- |
-| Pistol | Semi — one shot per click | 5/s | 20 | 120 | 1.3° |
-| Machine Gun | Burst of 10, then a forced pause | 11/s | 80 | 320 | 0.55° |
-| Sniper Rifle | Semi | 0.8/s | 10 | 40 | 3.2° |
+- **Light accumulates where pools overlap.** Fixtures sit every 3 cells (27
+  studs). At a range of 30 an average of 3.2 lights reached every point, so a
+  per-light brightness of 0.6 became an effective 2.0 — which clips a saturated
+  surface toward white and renders as flat lemon with no shadow anywhere. The
+  range is now 16, giving 0.7 lights per point.
+- **Roblox has a hard budget for local lights**, and a much smaller one for
+  shadow casters. Past it the engine *drops* lights rather than dimming, with no
+  control over which — so the fixture above your head is as likely to go as one
+  across the map. That is why a level full of lights can render pitch black.
+  `LightStreaming` keeps only the nearest 64 enabled (about 62 live against 282
+  built), nothing casts shadows, and 28% of fixtures are dead on arrival.
 
-A burst runs to completion whether or not you keep holding the trigger — that
-is what makes it read as a burst rather than a short spell of automatic fire.
+## What's in it
 
-Rolling over a weapon equips it and refills it to a full magazine and full
-reserve, whether or not you already own it. The pickup is only consumed if
-something actually changed, so walking over one fully loaded and already armed
-leaves it for someone else.
+- **Three entity variants**, weighted by rarity, differing in silhouette rather
+  than in stat block — a shape you can read down a corridor:
 
-Recoil is applied at `RenderPriority.Camera + 1`, after Roblox's camera scripts
-have positioned the camera — anything earlier is simply overwritten.
+  | | Height | Health | Speed | Look |
+  | --- | --- | --- | --- | --- |
+  | Wanderer (×3) | 8.6 | 120 | 12 / 23 | Pale blank head, dark body |
+  | Slender (×1) | 10.0 | 240 | 11 / 24 | Black suit, white head, tendrils |
+  | Crawler (×2) | 4.4 | 70 | 15 / 26 | Two heads, tentacles for arms |
+
+  All have gnashing fangs, glowing or black eyes chosen from the head's own
+  luminance, a procedural walk cycle driven off the Motor6D joints (no animation
+  assets), and a health bar overhead. They hunt as a pack — a sighting is
+  broadcast to everything within 95 studs — and spawn in groups.
+
+  Hitting you costs them 18 health and throws them backwards. You cannot retreat
+  from something already touching you, so it has to be the one that moves.
+
+- **Four weapons**, scattered 45 per type. Rolling over one equips it and fills
+  it to a full magazine and reserve.
+
+  | | Mode | Rate | Mag | Recoil | Kills |
+  | --- | --- | --- | --- | --- | --- |
+  | Pistol | Semi | 5/s | 20 | 0.2° | 5 body / 1 head |
+  | Machine Gun | Burst of 10 | 11/s | 80 | 0.1° | 5 body / 1 head |
+  | Shotgun | Semi, 9 pellets | 1.1/s | 6 | 0.45° | **outright**, ≤60 studs |
+  | Sniper | Semi, scoped | 0.8/s | 10 | 0.5° | 5 body / 1 head |
+
+  Lethality is a rule about **hits**, not damage numbers (`Config.Combat`): a
+  headshot kills, five body shots kill, whatever you are holding and whichever
+  variant you meet. Body damage derives from the target's own MaxHealth so it
+  holds for any variant. Damage figures float up and fade on each hit.
+
+- **Flashlight**, and it is the only thing that drives the entities off. Seven in
+  the level, welded to the **left** arm rather than made a `Tool` — Roblox Tools
+  equip to the right hand, and that would force a choice between light and a
+  weapon. Anything caught in the beam turns blue and backs away at 55% speed,
+  and keeps going 2.5s after the light leaves it. One minute of charge, with a
+  pulsed warning for the last fifteen seconds.
+
+- **Five lives**, capped at 8, with five extra lives in the level. Shown bottom
+  right as your own avatar; spent ones dim rather than vanish. Out of lives shows
+  GAME OVER, and the same click that would have respawned you starts a fresh run.
+
+- **A way out.** The exit sits at the open cell furthest from spawn — about 280
+  studs in a straight line and several times that through the corridors. Worth
+  1000 score and $1000, repeatable: you are returned to the entrance and the exit
+  stays put, so a second escape is the same crossing with fewer lives and a
+  half-spent torch. Three things help you find it: a proximity radar that beeps
+  faster as you close (on a squared curve, so the quickening lands in the final
+  stretch), a large pulsing square on the map that is never culled, and ~90
+  arrows raycast onto real walls pointing the way.
+
+- **Radar**, top right. Entities, weapons, medkits, cash, torches, lives and the
+  exit, rotated so up is where you face. Blips come from a fixed pool, so cost
+  does not grow with what is out there — drawing the maze itself would have meant
+  a frame per cell, 2401 of them.
+
+- **Medkits** (14) restore full health. **Cash** ($50) drops from every kill.
+
+- **Loading screen** that holds until the level is genuinely built, the character
+  exists, and there are lit fixtures near you — then counts you in, 3-2-1-FIGHT.
+  It shows the all-time top five while you wait.
+
+## Server-authoritative by design
+
+The client sends the ray it was aiming down; the server re-casts it and decides
+what was hit, enforcing fire rate, spread, ammo and damage. A client that lies
+about its aim can still only hit what is genuinely in front of it.
+
+The flashlight moved server-side for the same reason once the entities began
+reacting to it: a client deciding when its own torch is lit would be a client
+deciding when the monsters run away.
 
 ## High scores
 
-All-time top five, kept in an `OrderedDataStore` and shown on the loading
-screen. Only a player's best score is ever stored, and it is banked when they
-escape, when they leave, on server shutdown, and every 90 seconds.
+All-time top five in an `OrderedDataStore`, shown on the loading screen. Only a
+player's best is kept — `UpdateAsync` takes the max, so a bad run cannot
+overwrite a good one. Banked when they escape, when they leave, on shutdown, and
+every 90 seconds. Names live in a separate plain store, since an ordered store
+holds only integers.
 
 **Scores will not save in Studio until you enable it:** File → Experience
-Settings → Security → **Enable Studio Access to API Services**. The place has to
-be published first. Be aware that Studio then reads and writes the *same*
-datastore as the live game, so test scores set in Studio will appear on the real
-leaderboard once the game is public.
+Settings → Security → **Enable Studio Access to API Services**. The place must be
+published first. Studio then reads and writes the *same* datastore as the live
+game, so test scores will appear on the real board once it is public.
 
 ## Audio
 
-There are no uploaded audio assets. Everything uses `rbxasset://` paths, which
-are the sound files that ship with the Roblox client, pitched well down and
-run through reverb. That means audio works the moment you clone the repo, with
-no uploads and no moderation wait — but they are stock effects doing a job they
-weren't written for, and should be replaced with real audio eventually.
+Ten sounds, all from **ProSoundEffects** and **APMOfficial** — Roblox's own
+licensed libraries, free to use in any experience. Gunfire, creature growls, a
+death scream, an ambient drone, a proximity heartbeat tied to the nearest
+entity, an exit radar, pickup clicks and a fanfare.
 
-Roblox ships no *music*, so the score is synthesised: several copies of one low
-tone at different pitches, each drifting on its own slow volume cycle. The
-periods don't divide into each other, so the bed keeps shifting rather than
-looping audibly. Set `Config.Ambience.MusicId` to an `rbxassetid://` of your own
-track and that plays instead.
+**Every id was verified against Roblox's asset API before being used** —
+confirmed to exist, confirmed to be type 3 (Audio), confirmed to belong to those
+libraries. This matters more than it sounds: the previous set were
+`rbxasset://sounds/...` paths assumed to ship with the client. They do not
+resolve, each became a hanging HTTP request, and a burst weapon firing ten a
+second took Studio down. `Config.Audio.Enabled` gates everything, and no `Sound`
+is created at all unless its id is non-empty.
 
-## Shooting is server-authoritative
+## Store art
 
-The client sends the ray it was aiming down; the server re-casts that ray
-itself and decides what was hit. Fire rate, spread, ammo and damage are all
-enforced server-side. A client that lies about its aim can still only hit
-things genuinely in front of it, and can never out-fire its own weapon.
+`assets/branding/` holds the icon, three thumbnails and the generator that draws
+them. See the README in that folder — note that Roblox icons and thumbnails are
+*experience-level* assets and cannot ship inside the place file.
 
 ## Next up
 
-- Exits / level transitions (Level 0 -> Level 1)
-- Ambient audio: the hum, gunfire, footsteps on carpet
-- Entity variants — one that hunts by sound, one that only moves unobserved
-- Saved progress via DataStores
+- Level 1: a different generator behind the same exit
+- An entity that only moves while unobserved
+- Spending the cash on something
